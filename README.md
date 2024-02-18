@@ -11,3 +11,13 @@ Pili's single record of [Tianfu Greeway 100K](https://fastestknowntime.com/route
 Pili's 2023 running log in Hong Kong:
 
 ![firefly_animation_sample](https://github.com/irunart/firefly-animation/assets/1227160/427e9e1b-e721-4921-90be-dfc6bb26783d)
+
+## Install
+
+```
+./install.sh
+```
+
+The `install.sh` script will automatically download the required static files
+and install them into the `html` directory by default. You can change the
+target path using environment variables, see the script for details.
