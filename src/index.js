@@ -128,7 +128,12 @@ function preload() {
   );
   const { city, lon, lat, zoom } = { ...defaultConfig, ...urlParams };
   let center = [lon, lat];
-  const bbox = geoViewport.bounds(center, zoom, [width, height], 512);
+  const bbox = geoViewport.bounds(
+    center,
+    parseFloat(zoom),
+    [width, height],
+    512
+  );
   console.log(bbox);
   let gpsRect = gpsRectConvert(bbox);
   console.log(gpsRect);
