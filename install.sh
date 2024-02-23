@@ -17,5 +17,7 @@ if [[ "${REFRESH_GEO_VIEWPORT:-N}" == "Y" ]] || ! [[ -f "${GEO_VIEWPORT_PATH}/ge
     | tar xzf - -C "${GEO_VIEWPORT_PATH}" --strip-components 1 "geo-viewport-${GEO_VIEWPORT_VERSION}/geo-viewport.js"
 fi
 
+cp "${CWD}/src/index.js" "${STATIC_PATH}/firefly-animation.js"
+
 FIREFLY_PATH="${FIREFLY_PATH:-${TARGET_PATH}}"
 cp "${CWD}/firefly_animation.html" "${FIREFLY_PATH}"
