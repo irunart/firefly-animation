@@ -1,0 +1,29 @@
+{
+  "name": "firefly-animation",
+  "license": "MIT",
+  "homepage": "https://runart.net",
+  "description": "Best way to summarize your year of activities.",
+  "author": "RunArt.net",
+  "repository": {
+    "url": "https://github.com/irunart/firefly-animation.git",
+    "type": "git"
+  },
+  "type": "module",
+  "exports": "./src/index.js",
+  "bugs": {
+    "url": "https://github.com/irunart/firefly-animation/issues"
+  },
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "keywords": [],
+  "dependencies": {
+    "@mapbox/geo-viewport": "^0.5.0"
+  },
+  "devDependencies": {
+    "vite": "^5.1.4"
+  }
+}

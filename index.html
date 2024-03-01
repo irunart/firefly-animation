@@ -11,15 +11,22 @@
       margin: 0;
       background-color: #1b1b1b;
     }
+
+    #main {
+      width: 100vw;
+      height: 100vh;
+      /* The maximum width or height of Mapbox static image are 1280 */
+      max-width: 1280px;
+      max-height: 1280px;
+      margin: auto;
+    }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
-  <!--The published hosted version is out-of-date, https://github.com/mapbox/geo-viewport-->
-  <script src='/static/geo-viewport.js'></script>
-  <script src='/static/firefly-animation.js'></script>
+  <script type="module" src='/src/index.js'></script>
 </head>
 
 <body>
-  <main>
+  <main id="main">
   </main>
 
 </body>
