@@ -10,4 +10,5 @@ export default defineConfig({
   },
   envDir: "env",
   envPrefix: "FF_",
+  base: process.env.FF_BASE,
 });
