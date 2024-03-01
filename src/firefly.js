@@ -44,7 +44,7 @@ const prepareMapBackground = (container, config) => {
     `url(https://api.mapbox.com/styles/v1/mapbox/${mapStyle}/static` +
       `/${lon},${lat},${zoom}/${width}x${height}@2x?access_token=${mapboxToken})`
   );
-  container.style("background-size", "contain");
+  container.style("background-size", `${width}px ${height}px`);
   container.style("background-repeat", "no-repeat");
 };
 
