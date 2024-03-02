@@ -42,7 +42,9 @@ jobs:
         env:
           FF_MAPBOX_TOKEN: ${{secrets.FF_MAPBOX_TOKEN}}
           FF_BASE: /${{env.REPOSITORY_NAME}}
-          FF_DATA_URL_PREFIX: ${{vars.FF_DATA_URL_PREFIX}}
+          FF_EXAMPLE_GPX: /${{env.REPOSITORY_NAME}}/example/example.json
+      - name: Copy example data
+        run: cp -r ./example ./dist
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
