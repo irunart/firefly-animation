@@ -17,6 +17,8 @@ const defaultConfig = {
   },
 };
 
+const exampleGpx = import.meta.env.FF_EXAMPLE_GPX
+
 const parseGeoParams = (width, height) => {
   const urlParams = Object.fromEntries(
     new URLSearchParams(window.location.search)
@@ -127,6 +129,9 @@ class FireFly {
 }
 
 const buildDataUrl = (config) => {
+  if (exampleGpx) {
+    return exampleGpx;
+  }
   const prefix =
     import.meta.env.FF_DATA_URL_PREFIX || "/firefly_animation_data/2023";
   const {
@@ -137,6 +142,14 @@ const buildDataUrl = (config) => {
   const gpsRect = [bbox[0], bbox[2], bbox[1], bbox[3]];
   return `${prefix}/${gpsRect.join(",")}/${width},${height}/`;
 };
+
+const transformGpxData = (data, bbox, width, height) => Object.values(data).map(route => {
+    const {canvas_polyline, ...rest} = route
+    const line = canvas_polyline.map(([x, y]) => [(x - bbox[0]) / (bbox[2] - bbox[0]) * width,
+    (bbox[3] - y) / (bbox[3] - bbox[1]) * height,
+    ])
+    return {canvas_polyline: line, ...rest};
+  })
 
 const fireflyAnimation = (p5, container, config) => {
   let activities;
@@ -150,6 +163,7 @@ const fireflyAnimation = (p5, container, config) => {
   const {
     width,
     height,
+    geo,
     theme: { mainColor },
     animation: { fireFlySize, speed },
   } = config;
@@ -223,6 +237,9 @@ const fireflyAnimation = (p5, container, config) => {
     distHist = new Hist([5, 10, 20, 40, 80]);
     // the loadJSON returns array in a dict format
     activityLen = Object.keys(activities).length;
+    if (exampleGpx) {
+      activities = transformGpxData(activities, geo.bbox, width, height)
+    }
   };
 
   p5.keyPressed = () => {
