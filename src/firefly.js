@@ -83,18 +83,18 @@ class Hist {
 }
 
 class FireFly {
-  constructor(x, y, mr) {
+  constructor(p5, x, y, mr) {
     this.x = x;
     this.y = y;
     this.mr = mr;
     this.life = 255;
-    this.r = Math.random(0, 1) * mr;
-    this.theta = Math.random(0, 2 * Math.PI);
+    this.r = p5.random(0, 1) * mr;
+    this.theta = p5.random(0, 2 * Math.PI);
     this.ax = this.r * Math.cos(this.theta);
     this.ay = this.r * Math.sin(this.theta);
     this.vx = this.ax * -10;
     this.vy = this.ay * -10;
-    this.dlife = Math.random(-20, -10);
+    this.dlife = p5.random(-20, -10);
   }
   move() {
     this.x = this.x + this.vx;
@@ -171,7 +171,7 @@ const fireflyAnimation = (p5, container, config) => {
   const initFireFlies = () => {
     fireFlies = Array(fireFlySize);
     for (let k = 0; k < fireFlySize; k++) {
-      fireFlies[k] = new FireFly(-1000, -1000);
+      fireFlies[k] = new FireFly(p5, -1000, -1000);
     }
     fireflyIndex = 0;
   };
@@ -265,6 +265,7 @@ const fireflyAnimation = (p5, container, config) => {
       p5.pop();
       populateFireFly(
         new FireFly(
+          p5,
           polyline[currentActivityPoint][0],
           polyline[currentActivityPoint][1],
           activities[currentActivity]["distance"] / (50 * 1000)
