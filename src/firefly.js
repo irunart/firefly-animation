@@ -53,7 +53,7 @@ const prepareMapBackground = (container, config) => {
   container.style(
     "background-image",
     `url(https://api.mapbox.com/styles/v1/mapbox/${mapStyle}/static` +
-      `/${lon},${lat},${zoom}/${width}x${height}@2x?access_token=${mapboxToken})`
+    `/${lon},${lat},${zoom}/${width}x${height}@2x?access_token=${mapboxToken})`
   );
   container.style("background-size", `${width}px ${height}px`);
   container.style("background-repeat", "no-repeat");
@@ -153,12 +153,12 @@ const buildDataUrl = (config) => {
 };
 
 const transformGpxData = (data, bbox, width, height) => Object.values(data).map(route => {
-    const {canvas_polyline, ...rest} = route
-    const line = canvas_polyline.map(([x, y]) => [(x - bbox[0]) / (bbox[2] - bbox[0]) * width,
-    (bbox[3] - y) / (bbox[3] - bbox[1]) * height,
-    ])
-    return {canvas_polyline: line, ...rest};
-  })
+  const { canvas_polyline, ...rest } = route
+  const line = canvas_polyline.map(([x, y]) => [(x - bbox[0]) / (bbox[2] - bbox[0]) * width,
+  (bbox[3] - y) / (bbox[3] - bbox[1]) * height,
+  ])
+  return { canvas_polyline: line, ...rest };
+})
 
 const fireflyAnimation = (p5, container, config) => {
   let activities;
@@ -322,10 +322,10 @@ const fireflyAnimation = (p5, container, config) => {
 
     p5.text(
       `${activities[currentActivity]["start_date_str"]}\n` +
-        `#: ${currentActivity + 1}\n` +
-        `→: ${activities[currentActivity]["cum_distance"]} KM\n` +
-        `↗: ${activities[currentActivity]["cum_ascent"]} KM\n` +
-        `T: ${activities[currentActivity]["cum_et"]} hr\n`,
+      `#: ${currentActivity + 1}\n` +
+      `→: ${activities[currentActivity]["cum_distance"]} KM\n` +
+      `↗: ${activities[currentActivity]["cum_ascent"]} KM\n` +
+      `T: ${activities[currentActivity]["cum_et"]} hr\n`,
       width - 100,
       height - 90
     );
