@@ -19,14 +19,17 @@ const defaultConfig = {
 
 const exampleGpx = import.meta.env.FF_EXAMPLE_GPX
 
-const parseGeoParams = (width, height) => {
+const mergeConfigParams = (width, height) => {
   const urlParams = Object.fromEntries(
     new URLSearchParams(window.location.search)
   );
   const { city, lon, lat, zoom } = { ...defaultConfig.geo, ...urlParams };
+
   const center = { lon, lat };
   const bbox = bounds(center, parseFloat(zoom), [width, height], 512);
-  return { city, center, zoom, bbox };
+  const geo = { city, lon, lat, zoom, center, bbox }
+
+  return { ...defaultConfig, geo, width, height };
 };
 
 const mapboxToken = import.meta.env.FF_MAPBOX_TOKEN;
@@ -338,13 +341,7 @@ export default (containerId) => {
   return (p5) => {
     const container = p5.select(`#${containerId}`);
     const { width, height } = container;
-    const geo = parseGeoParams(width, height);
-    const config = {
-      ...defaultConfig,
-      geo,
-      width,
-      height,
-    };
+    const config = mergeConfigParams(width, height);
 
     return fireflyAnimation(p5, container, config);
   };
