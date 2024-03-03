@@ -43,6 +43,7 @@ jobs:
           FF_MAPBOX_TOKEN: ${{secrets.FF_MAPBOX_TOKEN}}
           FF_BASE: /${{env.REPOSITORY_NAME}}
           FF_EXAMPLE_GPX: /${{env.REPOSITORY_NAME}}/example/example.json
+          FF_INIFINITE_LOOP: true
       - name: Copy example data
         run: cp -r ./example ./dist
       - name: Upload artifact

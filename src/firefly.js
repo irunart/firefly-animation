@@ -15,6 +15,7 @@ const defaultConfig = {
     lat: 22.3549875359928,
     zoom: 10,
   },
+  infiniteLoop: import.meta.env.FF_INIFINITE_LOOP,
 };
 
 const exampleGpx = import.meta.env.FF_EXAMPLE_GPX
@@ -23,13 +24,18 @@ const mergeConfigParams = (width, height) => {
   const urlParams = Object.fromEntries(
     new URLSearchParams(window.location.search)
   );
-  const { city, lon, lat, zoom } = { ...defaultConfig.geo, ...urlParams };
+  const { loop } = urlParams;
+  const infiniteLoop = loop || defaultConfig.infiniteLoop;
 
+  const { city, lon, lat, zoom } = { ...defaultConfig.geo, ...urlParams };
   const center = { lon, lat };
   const bbox = bounds(center, parseFloat(zoom), [width, height], 512);
   const geo = { city, lon, lat, zoom, center, bbox }
 
-  return { ...defaultConfig, geo, width, height };
+  return {
+    ...defaultConfig, geo, width, height,
+    infiniteLoop: ["yes", "true", "1"].includes(infiniteLoop),
+  };
 };
 
 const mapboxToken = import.meta.env.FF_MAPBOX_TOKEN;
@@ -187,6 +193,15 @@ const fireflyAnimation = (p5, container, config) => {
     }
   };
 
+  const resetCanvas = () => {
+    baseLayer = undefined;
+    currentActivity = 0;
+    currentActivityPoint = 0;
+    initFireFlies();
+    distHist = new Hist([5, 10, 20, 40, 80]);
+    p5.clear();
+  }
+
   const drawAllPath = () => {
     p5.push();
     p5.clear();
@@ -229,15 +244,11 @@ const fireflyAnimation = (p5, container, config) => {
   p5.setup = () => {
     p5.textFont("Courier New");
     p5.createCanvas(width, height);
-    baseLayer = p5.get();
 
     p5.strokeWeight(1.5);
     p5.stroke(...mainColor, 150);
     p5.fill(...mainColor, 200);
-    currentActivity = 0;
-    currentActivityPoint = 0;
-    initFireFlies();
-    distHist = new Hist([5, 10, 20, 40, 80]);
+    resetCanvas()
     // the loadJSON returns array in a dict format
     activityLen = Object.keys(activities).length;
     if (exampleGpx) {
@@ -254,8 +265,9 @@ const fireflyAnimation = (p5, container, config) => {
 
   // static
   p5.draw = () => {
+    let lastPoint = false;
     p5.clear();
-    p5.image(baseLayer, 0, 0, width, height);
+    baseLayer && p5.image(baseLayer, 0, 0, width, height);
     for (let k = 0; k < speed; k++) {
       let polyline = activities[currentActivity]["canvas_polyline"];
       let pos1 = polyline[currentActivityPoint];
@@ -284,7 +296,7 @@ const fireflyAnimation = (p5, container, config) => {
         currentActivityPoint = 0;
         distHist.add(activities[currentActivity]["distance"] / 1000);
         if (currentActivity + 1 >= activityLen) {
-          p5.noLoop();
+          lastPoint = true;
           break;
         }
         currentActivity = currentActivity + 1;
@@ -334,6 +346,13 @@ const fireflyAnimation = (p5, container, config) => {
 
     drawWaterMark();
     p5.pop();
+    if (lastPoint) {
+      p5.noLoop();
+      if (config.infiniteLoop) {
+        resetCanvas();
+        p5.loop();
+      }
+    }
   };
 };
 
