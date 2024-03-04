@@ -305,11 +305,6 @@ const fireflyAnimation = (p5, container, config) => {
 
     baseLayer = p5.get();
 
-    for (let k = 0; k < fireFlies.length; k++) {
-      fireFlies[k].display(p5, config);
-      fireFlies[k].move();
-    }
-
     p5.push();
     p5.fill(0);
     p5.stroke(0);
@@ -346,11 +341,20 @@ const fireflyAnimation = (p5, container, config) => {
 
     drawWaterMark();
     p5.pop();
+
+    const finalView = lastPoint && p5.get();
+
+    for (let k = 0; k < fireFlies.length; k++) {
+      fireFlies[k].display(p5, config);
+      fireFlies[k].move();
+    }
+
     if (lastPoint) {
       p5.noLoop();
+      resetCanvas();
+      finalView && p5.image(finalView, 0, 0, width, height);
       if (config.infiniteLoop) {
-        resetCanvas();
-        p5.loop();
+        setTimeout(() => p5.loop(), 500);
       }
     }
   };
