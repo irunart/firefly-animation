@@ -41,6 +41,9 @@ const mergeConfigParams = (width, height) => {
 const mapboxToken = import.meta.env.FF_MAPBOX_TOKEN;
 
 const prepareMapBackground = (container, config) => {
+  if (!mapboxToken) {
+    return;
+  }
   const {
     geo: {
       center: { lat, lon },
