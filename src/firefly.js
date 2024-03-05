@@ -1,4 +1,7 @@
 import { bounds } from "@mapbox/geo-viewport/geo-viewport.js";
+import { BaseComponent } from "./component";
+import Stats from "./stats";
+
 
 const defaultConfig = {
   animation: {
@@ -8,6 +11,7 @@ const defaultConfig = {
   theme: {
     mapStyle: "dark-v11",
     mainColor: [100, 250, 155],
+    font: "Courier New",
   },
   geo: {
     city: "Hong Kong",
@@ -62,51 +66,19 @@ const prepareMapBackground = (container, config) => {
   container.style("background-repeat", "no-repeat");
 };
 
-class Hist {
-  constructor(boundaries) {
-    this.boundaries = boundaries;
-    this.numBucket = this.boundaries.length + 1;
-    this.buckets = Array(this.numBucket).fill(0);
-  }
-  add(x) {
-    let i = 0;
-    for (; i < this.boundaries.length; i++) {
-      if (x < this.boundaries[i]) {
-        break;
-      }
-    }
-    this.buckets[i]++;
-  }
-  report() {
-    let ret = [
-      {
-        name: `<${this.boundaries[0]}`,
-        count: this.buckets[0],
-      },
-    ];
-    for (let i = 0; i < this.boundaries.length; i++) {
-      ret.push({
-        name: `>${this.boundaries[i]}`,
-        count: this.buckets[i + 1],
-      });
-    }
-    return ret;
-  }
-}
-
 class FireFly {
-  constructor(p5, x, y, mr) {
+  constructor(random, x, y, mr) {
     this.x = x;
     this.y = y;
     this.mr = mr;
     this.life = 255;
-    this.r = p5.random(0, 1) * mr;
-    this.theta = p5.random(0, 2 * Math.PI);
+    this.r = random(0, 1) * mr;
+    this.theta = random(0, 2 * Math.PI);
     this.ax = this.r * Math.cos(this.theta);
     this.ay = this.r * Math.sin(this.theta);
     this.vx = this.ax * -10;
     this.vy = this.ay * -10;
-    this.dlife = p5.random(-20, -10);
+    this.dlife = random(-20, -10);
   }
   move() {
     this.x = this.x + this.vx;
@@ -124,19 +96,54 @@ class FireFly {
       this.life = 0;
     }
   }
-  display(p5, config) {
-    const {
-      width,
-      height,
-      theme: { mainColor },
-    } = config;
+  display(p5, width, height, mainColor) {
     if (this.x >= 0 && this.x < width && this.y >= 0 && this.y < height) {
       let r = Math.sqrt(this.life) * this.mr * 2;
-      p5.stroke(...mainColor, 10);
-      p5.strokeWeight(0.5);
       p5.fill(...mainColor, this.life / 10);
       p5.ellipse(this.x, this.y, r, r);
     }
+  }
+}
+
+class FireFlyGroup extends BaseComponent {
+  constructor(p5, fireFlySize) {
+    super();
+    this.fireFlyFactory = (...args) =>
+      new FireFly((...ra) => p5.random(...ra), ...args);
+    this.fireFlySize = fireFlySize;
+    this.fireFlies = undefined;
+    this.fireflyIndex = 0;
+    this.initFireFlies();
+  }
+
+  initFireFlies() {
+    this.fireFlies = Array(this.fireFlySize);
+    for (let k = 0; k < this.fireFlySize; k++) {
+      this.fireFlies[k] = this.fireFlyFactory(-1000, -1000);
+    }
+    this.fireflyIndex = 0;
+  };
+
+  onActivityPointForward(activity, fromPoint, toPoint) {
+    const firefly = this.fireFlyFactory(
+      fromPoint[0], fromPoint[1], activity["distance"] / (50 * 1000),
+      // 0.5
+    );
+    this.fireFlies[this.fireflyIndex++] = firefly;
+    if (this.fireflyIndex >= this.fireFlySize) {
+      this.fireflyIndex = 0;
+    }
+  }
+
+  draw(style, width, height) {
+    style.with((p5, { mainColor }) => {
+      p5.stroke(...mainColor, 10);
+      p5.strokeWeight(0.5);
+      for (let k = 0; k < this.fireFlies.length; k++) {
+        this.fireFlies[k].display(p5, width, height, mainColor);
+        this.fireFlies[k].move();
+      }
+    })
   }
 }
 
@@ -163,45 +170,56 @@ const transformGpxData = (data, bbox, width, height) => Object.values(data).map(
   return { canvas_polyline: line, ...rest };
 })
 
+class Style {
+  constructor(p5, config) {
+    this.config = config;
+    this.theme = config.theme;
+    this.p5 = p5;
+  }
+
+  text(handler) {
+    this.with((p, theme) => {
+      const { font, mainColor } = theme;
+      p.strokeWeight(1);
+      p.textFont(font);
+      p.stroke(...mainColor, 255);
+      handler(p, theme);
+    });
+  }
+
+  with(handler) {
+    this.p5.push();
+    handler(this.p5, this.theme);
+    this.p5.pop();
+  }
+}
+
 const fireflyAnimation = (p5, container, config) => {
   let activities;
   let currentActivity;
   let currentActivityPoint;
   let activityLen;
-  let fireFlies;
-  let fireflyIndex;
   let baseLayer;
-  let distHist;
+  let components;
   const {
     width,
     height,
     geo,
-    theme: { mainColor },
+    theme: { mainColor, font },
     animation: { fireFlySize, speed },
   } = config;
-
-  const initFireFlies = () => {
-    fireFlies = Array(fireFlySize);
-    for (let k = 0; k < fireFlySize; k++) {
-      fireFlies[k] = new FireFly(p5, -1000, -1000);
-    }
-    fireflyIndex = 0;
-  };
-
-  const populateFireFly = (firefly) => {
-    fireFlies[fireflyIndex] = firefly;
-    fireflyIndex = fireflyIndex + 1;
-    if (fireflyIndex >= fireFlySize) {
-      fireflyIndex = 0;
-    }
-  };
+  const style = new Style(p5, config);
 
   const resetCanvas = () => {
     baseLayer = undefined;
     currentActivity = 0;
     currentActivityPoint = 0;
-    initFireFlies();
-    distHist = new Hist([5, 10, 20, 40, 80]);
+    components = [
+      new FireFlyGroup(p5, fireFlySize),
+      new Stats(),
+    ]
+    components.forEach(component =>
+      component.onActivityStarted(currentActivity, activities[currentActivity]));
     p5.clear();
   }
 
@@ -234,7 +252,7 @@ const fireflyAnimation = (p5, container, config) => {
   };
 
   const drawWaterMark = () => {
-    p5.text(`https://RunArt.net`, 10, height - 30);
+    style.text((p5) => p5.text(`https://RunArt.net`, 10, height - 30));
   };
 
   p5.preload = () => {
@@ -245,18 +263,18 @@ const fireflyAnimation = (p5, container, config) => {
   };
 
   p5.setup = () => {
-    p5.textFont("Courier New");
+    p5.textFont(font);
     p5.createCanvas(width, height);
 
     p5.strokeWeight(1.5);
     p5.stroke(...mainColor, 150);
     p5.fill(...mainColor, 200);
-    resetCanvas()
     // the loadJSON returns array in a dict format
     activityLen = Object.keys(activities).length;
     if (exampleGpx) {
       activities = transformGpxData(activities, geo.bbox, width, height)
     }
+    resetCanvas();
   };
 
   p5.keyPressed = () => {
@@ -281,76 +299,34 @@ const fireflyAnimation = (p5, container, config) => {
       p5.strokeWeight(1);
       p5.line(pos1[0], pos1[1], pos2[0], pos2[1]);
       p5.pop();
-      populateFireFly(
-        new FireFly(
-          p5,
-          polyline[currentActivityPoint][0],
-          polyline[currentActivityPoint][1],
-          activities[currentActivity]["distance"] / (50 * 1000)
-          // 0.5
-        )
-      );
+
+      components.forEach(p =>
+        p.onActivityPointForward(activities[currentActivity], pos1, pos2));
 
       currentActivityPoint = currentActivityPoint + 1;
       if (
         currentActivityPoint >=
         activities[currentActivity]["canvas_polyline"].length - 1
       ) {
+        components.forEach(p =>
+          p.onActivityFinished(activities[currentActivity]));
         currentActivityPoint = 0;
-        distHist.add(activities[currentActivity]["distance"] / 1000);
         if (currentActivity + 1 >= activityLen) {
           lastPoint = true;
           break;
         }
         currentActivity = currentActivity + 1;
+        components.forEach(p =>
+          p.onActivityStarted(currentActivity, activities[currentActivity]));
       }
     }
 
     baseLayer = p5.get();
-
-    p5.push();
-    p5.fill(0);
-    p5.stroke(0);
-    p5.pop();
-    p5.push();
-    p5.strokeWeight(1);
-    p5.textFont("Courier New");
-    p5.stroke(...mainColor, 255);
-    p5.strokeWeight(1);
-
-    p5.text(
-      `${activities[currentActivity]["start_date_str"]}\n` +
-      `#: ${currentActivity + 1}\n` +
-      `→: ${activities[currentActivity]["cum_distance"]} KM\n` +
-      `↗: ${activities[currentActivity]["cum_ascent"]} KM\n` +
-      `T: ${activities[currentActivity]["cum_et"]} hr\n`,
-      width - 100,
-      height - 90
-    );
-
-    const distProfile = distHist.report();
-    const distProfileStartY = 40;
-    for (let k = 0; k < distProfile.length; k++) {
-      let p = distProfile[k];
-      p5.text(`${p.name}`, 10, distProfileStartY + 20 * k);
-      p5.text(
-        `${p.count}`,
-        10 + 30 + 5 + p.count * 1.5,
-        distProfileStartY + 20 * k
-      );
-      p5.fill(...mainColor);
-      p5.rect(10 + 30, distProfileStartY - 10 + 20 * k, p.count * 1.5, 18);
-    }
-
     drawWaterMark();
-    p5.pop();
 
+    components.filter(p => p.includeInFinalView()).forEach(p => p.draw(style, width, height));
     const finalView = lastPoint && p5.get();
-
-    for (let k = 0; k < fireFlies.length; k++) {
-      fireFlies[k].display(p5, config);
-      fireFlies[k].move();
-    }
+    components.filter(p => !p.includeInFinalView()).forEach(p => p.draw(style, width, height));
 
     if (lastPoint) {
       p5.noLoop();
