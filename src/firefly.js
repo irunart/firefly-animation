@@ -194,61 +194,102 @@ class Style {
   }
 }
 
+class ActivityThread {
+  constructor(activities, components, config, style) {
+    this.finished = false;
+    this.activities = activities;
+    this.currentActivity = 0;
+    this.currentActivityPoint = 0;
+    this.activityLen = Object.keys(activities).length;
+    this.config = config;
+    this.style = style;
+    this.components = components;
+    this.components.forEach(component =>
+      component.onActivityStarted(this.currentActivity, this.activities[this.currentActivity]));
+  }
+
+  drawAllPath() {
+    this.style((p5, { mainColor }) => {
+      p5.clear();
+      p5.strokeWeight(0.5);
+      p5.stroke(...mainColor, 150);
+      for (let k = 0; k < this.activityLen; k++) {
+        const polyline = this.activities[k]["canvas_polyline"];
+        for (let p = 0; p < polyline.length - 1; p++) {
+          const pos1 = polyline[p];
+          const pos2 = polyline[p + 1];
+          p5.line(pos1[0], pos1[1], pos2[0], pos2[1]);
+        }
+      }
+    });
+  };
+
+  forward() {
+    if (this.finished) {
+      return;
+    }
+    const { animation: { speed }, theme: { mainColor } } = this.config;
+    for (let k = 0; k < speed; k++) {
+      const activity = this.activities[this.currentActivity];
+      const polyline = activity["canvas_polyline"];
+      const pos1 = polyline[this.currentActivityPoint];
+      const pos2 = polyline[this.currentActivityPoint + 1];
+
+      this.style.with((p5) => {
+        p5.stroke(...mainColor, 100);
+        p5.fill(...mainColor, 100);
+        p5.strokeWeight(1);
+        p5.line(pos1[0], pos1[1], pos2[0], pos2[1]);
+      })
+
+      this.components.forEach(p => p.onActivityPointForward(activity, pos1, pos2));
+
+      this.currentActivityPoint++;
+      if (this.currentActivityPoint >= activity["canvas_polyline"].length - 1) {
+        this.components.forEach(p => p.onActivityFinished(activity));
+        this.currentActivityPoint = 0;
+        if (this.currentActivity + 1 >= this.activityLen) {
+          this.finished = true;
+          break;
+        }
+        this.currentActivity++;
+        this.components.forEach(p =>
+          p.onActivityStarted(this.currentActivity, this.activities[this.currentActivity]));
+      }
+    }
+    return this.finished;
+  }
+}
+
 const fireflyAnimation = (p5, container, config) => {
-  let activities;
-  let currentActivity;
-  let currentActivityPoint;
-  let activityLen;
+  let allActivities;
+  let threads;
   let baseLayer;
-  let components;
+
   const {
     width,
     height,
     geo,
     theme: { mainColor, font },
-    animation: { fireFlySize, speed },
   } = config;
   const style = new Style(p5, config);
 
   const resetCanvas = () => {
     baseLayer = undefined;
-    currentActivity = 0;
-    currentActivityPoint = 0;
-    components = [
-      new FireFlyGroup(p5, fireFlySize),
-      new Stats(),
-    ]
-    components.forEach(component =>
-      component.onActivityStarted(currentActivity, activities[currentActivity]));
+    threads = allActivities.map((activities) => {
+      const threadConfig = config; // can be customized for each thread here.
+      const { animation: { fireFlySize } } = threadConfig;
+      const components = [
+        new FireFlyGroup(p5, fireFlySize),
+        new Stats(),
+      ];
+      return new ActivityThread(activities, components, threadConfig, new Style(p5, threadConfig));
+    })
     p5.clear();
   }
 
-  const drawAllPath = () => {
-    p5.push();
-    p5.clear();
-    p5.strokeWeight(0.5);
-    p5.stroke(0, 150, 100, 150);
-    for (
-      currentActivity = 0;
-      currentActivity < activityLen;
-      currentActivity++
-    ) {
-      let polyline = activities[currentActivity]["canvas_polyline"];
-      for (
-        currentActivityPoint = 0;
-        currentActivityPoint < polyline.length - 1;
-        currentActivityPoint++
-      ) {
-        let pos1 = polyline[currentActivityPoint];
-        let pos2 = polyline[currentActivityPoint + 1];
-        p5.line(pos1[0], pos1[1], pos2[0], pos2[1]);
-      }
-    }
-    p5.pop();
-  };
-
   const drawFrameRate = () => {
-    p5.text(`FPS: ${parseInt(frameRate())}`, 10, height);
+    p5.text(`FPS: ${parseInt(p5.frameRate())}`, 10, height);
   };
 
   const drawWaterMark = () => {
@@ -259,7 +300,7 @@ const fireflyAnimation = (p5, container, config) => {
     prepareMapBackground(container, config);
     const dataUrl = buildDataUrl(config);
     console.log(dataUrl);
-    activities = p5.loadJSON(dataUrl);
+    allActivities = [p5.loadJSON(dataUrl)];
   };
 
   p5.setup = () => {
@@ -269,10 +310,9 @@ const fireflyAnimation = (p5, container, config) => {
     p5.strokeWeight(1.5);
     p5.stroke(...mainColor, 150);
     p5.fill(...mainColor, 200);
-    // the loadJSON returns array in a dict format
-    activityLen = Object.keys(activities).length;
     if (exampleGpx) {
-      activities = transformGpxData(activities, geo.bbox, width, height)
+      allActivities = allActivities.map(
+        activities => transformGpxData(activities, geo.bbox, width, height));
     }
     resetCanvas();
   };
@@ -286,49 +326,24 @@ const fireflyAnimation = (p5, container, config) => {
 
   // static
   p5.draw = () => {
-    let lastPoint = false;
     p5.clear();
     baseLayer && p5.image(baseLayer, 0, 0, width, height);
-    for (let k = 0; k < speed; k++) {
-      let polyline = activities[currentActivity]["canvas_polyline"];
-      let pos1 = polyline[currentActivityPoint];
-      let pos2 = polyline[currentActivityPoint + 1];
-      p5.push();
-      p5.stroke(...mainColor, 100);
-      p5.fill(...mainColor, 100);
-      p5.strokeWeight(1);
-      p5.line(pos1[0], pos1[1], pos2[0], pos2[1]);
-      p5.pop();
-
-      components.forEach(p =>
-        p.onActivityPointForward(activities[currentActivity], pos1, pos2));
-
-      currentActivityPoint = currentActivityPoint + 1;
-      if (
-        currentActivityPoint >=
-        activities[currentActivity]["canvas_polyline"].length - 1
-      ) {
-        components.forEach(p =>
-          p.onActivityFinished(activities[currentActivity]));
-        currentActivityPoint = 0;
-        if (currentActivity + 1 >= activityLen) {
-          lastPoint = true;
-          break;
-        }
-        currentActivity = currentActivity + 1;
-        components.forEach(p =>
-          p.onActivityStarted(currentActivity, activities[currentActivity]));
-      }
-    }
+    const finished = threads.map(t => t.forward()).reduce((prev, curr) => prev && curr, true);
 
     baseLayer = p5.get();
     drawWaterMark();
 
-    components.filter(p => p.includeInFinalView()).forEach(p => p.draw(style, width, height));
-    const finalView = lastPoint && p5.get();
-    components.filter(p => !p.includeInFinalView()).forEach(p => p.draw(style, width, height));
+    threads.forEach(t => {
+      t.components.filter(p => p.includeInFinalView())
+        .forEach(p => p.draw(t.style, width, height));
+    })
+    const finalView = finished && p5.get();
+    threads.forEach(t => {
+      t.components.filter(p => !p.includeInFinalView())
+        .forEach(p => p.draw(t.style, width, height));
+    })
 
-    if (lastPoint) {
+    if (finished) {
       p5.noLoop();
       resetCanvas();
       finalView && p5.image(finalView, 0, 0, width, height);
