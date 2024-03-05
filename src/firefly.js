@@ -1,6 +1,7 @@
 import { bounds } from "@mapbox/geo-viewport/geo-viewport.js";
 import { BaseComponent } from "./component";
 import Stats from "./stats";
+import { hexToRgb } from "./colors";
 
 
 const defaultConfig = {
@@ -24,6 +25,11 @@ const defaultConfig = {
 
 const exampleGpx = import.meta.env.FF_EXAMPLE_GPX
 
+const mapStyles = {
+  dark: "dark-v11",
+  light: "light-v11",
+}
+
 const mergeConfigParams = (width, height) => {
   const urlParams = Object.fromEntries(
     new URLSearchParams(window.location.search)
@@ -36,8 +42,22 @@ const mergeConfigParams = (width, height) => {
   const bbox = bounds(center, parseFloat(zoom), [width, height], 512);
   const geo = { city, lon, lat, zoom, center, bbox }
 
+  const { mainColor: defaultMainColor, mapStyle: defaultMapStyle } = defaultConfig.theme;
+  const { color, map } = urlParams;
+  const mainColor = (color && hexToRgb(color)) || defaultMainColor;
+  const mapStyle = mapStyles[map] || defaultMapStyle;
+  const theme = {...defaultConfig.theme, mainColor, mapStyle};
+
+  const { fireFlySize: defaultFireFlySize, speed: defaultSpeed } = defaultConfig.animation;
+  const {firefly, speed: speedParam} = urlParams;
+  const fireFlySize = firefly && parseInt(firefly, 10) || defaultFireFlySize;
+  const speed = speedParam && parseInt(speedParam, 10) || defaultSpeed;
+  const animation = {...defaultConfig.animation, fireFlySize, speed};
+
   return {
     ...defaultConfig, geo, width, height,
+    animation,
+    theme,
     infiniteLoop: ["yes", "true", "1"].includes(infiniteLoop),
   };
 };
