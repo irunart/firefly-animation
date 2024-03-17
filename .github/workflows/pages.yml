@@ -42,6 +42,7 @@ jobs:
         env:
           FF_MAPBOX_TOKEN: ${{secrets.FF_MAPBOX_TOKEN}}
           FF_BASE: /${{env.REPOSITORY_NAME}}
+          FF_DEFAULT_MODE: example
           FF_EXAMPLE_GPX: /${{env.REPOSITORY_NAME}}/example/example.json
           FF_INIFINITE_LOOP: true
       - name: Copy example data

@@ -21,44 +21,67 @@ const defaultConfig = {
     zoom: 10,
   },
   infiniteLoop: import.meta.env.FF_INIFINITE_LOOP,
+  mode: import.meta.env.FF_DEFAULT_MODE || "summary",
 };
 
-const exampleGpx = import.meta.env.FF_EXAMPLE_GPX
+const modes = {
+  summary: {
+    dataSource: (config) => buildSummaryDataUrl(config),
+    dataSourceThread: "single",
+    components: (p5, config) => [new FireFlyGroup(p5, config), new Stats()],
+  },
+  example: {
+    dataSource: () =>
+      import.meta.env.FF_EXAMPLE_GPX || "./example/example.json",
+    dataSourceThread: "single",
+    dataHandler: (activities, { geo, width, height }) =>
+      transformGpxData(activities, geo.bbox, width, height),
+    components: (p5, config) => [new FireFlyGroup(p5, config), new Stats()],
+  },
+};
 
 const mapStyles = {
   dark: "dark-v11",
   light: "light-v11",
-}
+};
 
 const mergeConfigParams = (width, height) => {
   const urlParams = Object.fromEntries(
     new URLSearchParams(window.location.search)
   );
+  const { mode: modeParam } = urlParams;
+  const mode = (modes[modeParam] && modeParam) || defaultConfig.mode;
   const { loop } = urlParams;
   const infiniteLoop = loop || defaultConfig.infiniteLoop;
 
   const { city, lon, lat, zoom } = { ...defaultConfig.geo, ...urlParams };
   const center = { lon, lat };
   const bbox = bounds(center, parseFloat(zoom), [width, height], 512);
-  const geo = { city, lon, lat, zoom, center, bbox }
+  const geo = { city, lon, lat, zoom, center, bbox };
 
-  const { mainColor: defaultMainColor, mapStyle: defaultMapStyle } = defaultConfig.theme;
+  const { mainColor: defaultMainColor, mapStyle: defaultMapStyle } =
+    defaultConfig.theme;
   const { color, map } = urlParams;
   const mainColor = (color && hexToRgb(color)) || defaultMainColor;
   const mapStyle = mapStyles[map] || defaultMapStyle;
-  const theme = {...defaultConfig.theme, mainColor, mapStyle};
+  const theme = { ...defaultConfig.theme, mainColor, mapStyle };
 
-  const { fireFlySize: defaultFireFlySize, speed: defaultSpeed } = defaultConfig.animation;
-  const {firefly, speed: speedParam} = urlParams;
-  const fireFlySize = firefly && parseInt(firefly, 10) || defaultFireFlySize;
-  const speed = speedParam && parseInt(speedParam, 10) || defaultSpeed;
-  const animation = {...defaultConfig.animation, fireFlySize, speed};
+  const { fireFlySize: defaultFireFlySize, speed: defaultSpeed } =
+    defaultConfig.animation;
+  const { firefly, speed: speedParam } = urlParams;
+  const fireFlySize = (firefly && parseInt(firefly, 10)) || defaultFireFlySize;
+  const speed = (speedParam && parseInt(speedParam, 10)) || defaultSpeed;
+  const animation = { ...defaultConfig.animation, fireFlySize, speed };
 
   return {
-    ...defaultConfig, geo, width, height,
+    ...defaultConfig,
+    geo,
+    width,
+    height,
     animation,
     theme,
     infiniteLoop: ["yes", "true", "1"].includes(infiniteLoop),
+    mode,
   };
 };
 
@@ -80,7 +103,7 @@ const prepareMapBackground = (container, config) => {
   container.style(
     "background-image",
     `url(https://api.mapbox.com/styles/v1/mapbox/${mapStyle}/static` +
-    `/${lon},${lat},${zoom}/${width}x${height}@2x?access_token=${mapboxToken})`
+      `/${lon},${lat},${zoom}/${width}x${height}@2x?access_token=${mapboxToken})`
   );
   container.style("background-size", `${width}px ${height}px`);
   container.style("background-repeat", "no-repeat");
@@ -126,11 +149,11 @@ class FireFly {
 }
 
 class FireFlyGroup extends BaseComponent {
-  constructor(p5, fireFlySize) {
+  constructor(p5, config) {
     super();
     this.fireFlyFactory = (...args) =>
       new FireFly((...ra) => p5.random(...ra), ...args);
-    this.fireFlySize = fireFlySize;
+    this.fireFlySize = config.animation.fireFlySize;
     this.fireFlies = undefined;
     this.fireflyIndex = 0;
     this.initFireFlies();
@@ -142,11 +165,13 @@ class FireFlyGroup extends BaseComponent {
       this.fireFlies[k] = this.fireFlyFactory(-1000, -1000);
     }
     this.fireflyIndex = 0;
-  };
+  }
 
   onActivityPointForward(activity, fromPoint, toPoint) {
     const firefly = this.fireFlyFactory(
-      fromPoint[0], fromPoint[1], activity["distance"] / (50 * 1000),
+      fromPoint[0],
+      fromPoint[1],
+      activity["distance"] / (50 * 1000)
       // 0.5
     );
     this.fireFlies[this.fireflyIndex++] = firefly;
@@ -163,16 +188,14 @@ class FireFlyGroup extends BaseComponent {
         this.fireFlies[k].display(p5, width, height, mainColor);
         this.fireFlies[k].move();
       }
-    })
+    });
   }
 }
 
-const buildDataUrl = (config) => {
-  if (exampleGpx) {
-    return exampleGpx;
-  }
+const buildSummaryDataUrl = (config) => {
   const prefix =
-    import.meta.env.FF_DATA_URL_PREFIX || "/firefly_animation_data/2023";
+    import.meta.env.FF_SUMMARY_DATA_URL_PREFIX ||
+    "/firefly_animation_data/2023";
   const {
     width,
     height,
@@ -182,13 +205,15 @@ const buildDataUrl = (config) => {
   return `${prefix}/${gpsRect.join(",")}/${width},${height}/`;
 };
 
-const transformGpxData = (data, bbox, width, height) => Object.values(data).map(route => {
-  const { canvas_polyline, ...rest } = route
-  const line = canvas_polyline.map(([x, y]) => [(x - bbox[0]) / (bbox[2] - bbox[0]) * width,
-  (bbox[3] - y) / (bbox[3] - bbox[1]) * height,
-  ])
-  return { canvas_polyline: line, ...rest };
-})
+const transformGpxData = (data, bbox, width, height) =>
+  Object.values(data).map((route) => {
+    const { canvas_polyline, ...rest } = route;
+    const line = canvas_polyline.map(([x, y]) => [
+      ((x - bbox[0]) / (bbox[2] - bbox[0])) * width,
+      ((bbox[3] - y) / (bbox[3] - bbox[1])) * height,
+    ]);
+    return { canvas_polyline: line, ...rest };
+  });
 
 class Style {
   constructor(p5, config) {
@@ -224,8 +249,12 @@ class ActivityThread {
     this.config = config;
     this.style = style;
     this.components = components;
-    this.components.forEach(component =>
-      component.onActivityStarted(this.currentActivity, this.activities[this.currentActivity]));
+    this.components.forEach((component) =>
+      component.onActivityStarted(
+        this.currentActivity,
+        this.activities[this.currentActivity]
+      )
+    );
   }
 
   drawAllPath() {
@@ -242,13 +271,16 @@ class ActivityThread {
         }
       }
     });
-  };
+  }
 
   forward() {
     if (this.finished) {
       return;
     }
-    const { animation: { speed }, theme: { mainColor } } = this.config;
+    const {
+      animation: { speed },
+      theme: { mainColor },
+    } = this.config;
     for (let k = 0; k < speed; k++) {
       const activity = this.activities[this.currentActivity];
       const polyline = activity["canvas_polyline"];
@@ -260,21 +292,27 @@ class ActivityThread {
         p5.fill(...mainColor, 100);
         p5.strokeWeight(1);
         p5.line(pos1[0], pos1[1], pos2[0], pos2[1]);
-      })
+      });
 
-      this.components.forEach(p => p.onActivityPointForward(activity, pos1, pos2));
+      this.components.forEach((p) =>
+        p.onActivityPointForward(activity, pos1, pos2)
+      );
 
       this.currentActivityPoint++;
       if (this.currentActivityPoint >= activity["canvas_polyline"].length - 1) {
-        this.components.forEach(p => p.onActivityFinished(activity));
+        this.components.forEach((p) => p.onActivityFinished(activity));
         this.currentActivityPoint = 0;
         if (this.currentActivity + 1 >= this.activityLen) {
           this.finished = true;
           break;
         }
         this.currentActivity++;
-        this.components.forEach(p =>
-          p.onActivityStarted(this.currentActivity, this.activities[this.currentActivity]));
+        this.components.forEach((p) =>
+          p.onActivityStarted(
+            this.currentActivity,
+            this.activities[this.currentActivity]
+          )
+        );
       }
     }
     return this.finished;
@@ -293,20 +331,22 @@ const fireflyAnimation = (p5, container, config) => {
     theme: { mainColor, font },
   } = config;
   const style = new Style(p5, config);
+  const mode = modes[config.mode];
 
   const resetCanvas = () => {
     baseLayer = undefined;
     threads = allActivities.map((activities) => {
       const threadConfig = config; // can be customized for each thread here.
-      const { animation: { fireFlySize } } = threadConfig;
-      const components = [
-        new FireFlyGroup(p5, fireFlySize),
-        new Stats(),
-      ];
-      return new ActivityThread(activities, components, threadConfig, new Style(p5, threadConfig));
-    })
+      const components = mode.components(p5, threadConfig);
+      return new ActivityThread(
+        activities,
+        components,
+        threadConfig,
+        new Style(p5, threadConfig)
+      );
+    });
     p5.clear();
-  }
+  };
 
   const drawFrameRate = () => {
     p5.text(`FPS: ${parseInt(p5.frameRate())}`, 10, height);
@@ -318,9 +358,8 @@ const fireflyAnimation = (p5, container, config) => {
 
   p5.preload = () => {
     prepareMapBackground(container, config);
-    const dataUrl = buildDataUrl(config);
-    console.log(dataUrl);
-    allActivities = [p5.loadJSON(dataUrl)];
+    const dataSource = mode.dataSource(config);
+    allActivities = p5.loadJSON(dataSource);
   };
 
   p5.setup = () => {
@@ -330,9 +369,13 @@ const fireflyAnimation = (p5, container, config) => {
     p5.strokeWeight(1.5);
     p5.stroke(...mainColor, 150);
     p5.fill(...mainColor, 200);
-    if (exampleGpx) {
-      allActivities = allActivities.map(
-        activities => transformGpxData(activities, geo.bbox, width, height));
+    if (mode.dataSourceThread === "single") {
+      allActivities = [allActivities];
+    }
+    if (mode.dataHandler) {
+      allActivities = allActivities.map((activities) =>
+        mode.dataHandler(activities, config)
+      );
     }
     resetCanvas();
   };
@@ -348,20 +391,24 @@ const fireflyAnimation = (p5, container, config) => {
   p5.draw = () => {
     p5.clear();
     baseLayer && p5.image(baseLayer, 0, 0, width, height);
-    const finished = threads.map(t => t.forward()).reduce((prev, curr) => prev && curr, true);
+    const finished = threads
+      .map((t) => t.forward())
+      .reduce((prev, curr) => prev && curr, true);
 
     baseLayer = p5.get();
     drawWaterMark();
 
-    threads.forEach(t => {
-      t.components.filter(p => p.includeInFinalView())
-        .forEach(p => p.draw(t.style, width, height));
-    })
+    threads.forEach((t) => {
+      t.components
+        .filter((p) => p.includeInFinalView())
+        .forEach((p) => p.draw(t.style, width, height));
+    });
     const finalView = finished && p5.get();
-    threads.forEach(t => {
-      t.components.filter(p => !p.includeInFinalView())
-        .forEach(p => p.draw(t.style, width, height));
-    })
+    threads.forEach((t) => {
+      t.components
+        .filter((p) => !p.includeInFinalView())
+        .forEach((p) => p.draw(t.style, width, height));
+    });
 
     if (finished) {
       p5.noLoop();
