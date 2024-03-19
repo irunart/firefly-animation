@@ -6,7 +6,7 @@ import { hexToRgb } from "./colors";
 
 const defaultConfig = {
   animation: {
-    fireFlySize: 500,
+    fireflyLen: 500,
     speed: 20,
   },
   theme: {
@@ -28,7 +28,7 @@ const modes = {
   summary: {
     dataSource: (config) => buildSummaryDataUrl(config),
     dataSourceThread: "single",
-    components: (p5, config) => [new FireFlyGroup(p5, config), new Stats()],
+    components: (p5, config) => [new FireflyGroup(p5, config), new Stats()],
   },
   example: {
     dataSource: () =>
@@ -36,7 +36,7 @@ const modes = {
     dataSourceThread: "single",
     dataHandler: (activities, { geo, width, height }) =>
       transformGpxData(activities, geo.bbox, width, height),
-    components: (p5, config) => [new FireFlyGroup(p5, config), new Stats()],
+    components: (p5, config) => [new FireflyGroup(p5, config), new Stats()],
   },
 };
 
@@ -66,12 +66,12 @@ const mergeConfigParams = (width, height) => {
   const mapStyle = mapStyles[map] || defaultMapStyle;
   const theme = { ...defaultConfig.theme, mainColor, mapStyle };
 
-  const { fireFlySize: defaultFireFlySize, speed: defaultSpeed } =
+  const { fireflyLen: defaultFireflySize, speed: defaultSpeed } =
     defaultConfig.animation;
   const { firefly, speed: speedParam } = urlParams;
-  const fireFlySize = (firefly && parseInt(firefly, 10)) || defaultFireFlySize;
+  const fireflyLen = (firefly && parseInt(firefly, 10)) || defaultFireflySize;
   const speed = (speedParam && parseInt(speedParam, 10)) || defaultSpeed;
-  const animation = { ...defaultConfig.animation, fireFlySize, speed };
+  const animation = { ...defaultConfig.animation, fireflyLen, speed };
 
   return {
     ...defaultConfig,
@@ -109,7 +109,7 @@ const prepareMapBackground = (container, config) => {
   container.style("background-repeat", "no-repeat");
 };
 
-class FireFly {
+class Firefly {
   constructor(random, x, y, mr) {
     this.x = x;
     this.y = y;
@@ -148,34 +148,34 @@ class FireFly {
   }
 }
 
-class FireFlyGroup extends BaseComponent {
+class FireflyGroup extends BaseComponent {
   constructor(p5, config) {
     super();
-    this.fireFlyFactory = (...args) =>
-      new FireFly((...ra) => p5.random(...ra), ...args);
-    this.fireFlySize = config.animation.fireFlySize;
+    this.fireflyFactory = (...args) =>
+      new Firefly((...ra) => p5.random(...ra), ...args);
+    this.fireflyLen = config.animation.fireflyLen;
     this.fireFlies = undefined;
     this.fireflyIndex = 0;
     this.initFireFlies();
   }
 
   initFireFlies() {
-    this.fireFlies = Array(this.fireFlySize);
-    for (let k = 0; k < this.fireFlySize; k++) {
-      this.fireFlies[k] = this.fireFlyFactory(-1000, -1000);
+    this.fireFlies = Array(this.fireflyLen);
+    for (let k = 0; k < this.fireflyLen; k++) {
+      this.fireFlies[k] = this.fireflyFactory(-1000, -1000);
     }
     this.fireflyIndex = 0;
   }
 
   onActivityPointForward(activity, fromPoint, toPoint) {
-    const firefly = this.fireFlyFactory(
+    const firefly = this.fireflyFactory(
       fromPoint[0],
       fromPoint[1],
       activity["distance"] / (50 * 1000)
       // 0.5
     );
     this.fireFlies[this.fireflyIndex++] = firefly;
-    if (this.fireflyIndex >= this.fireFlySize) {
+    if (this.fireflyIndex >= this.fireflyLen) {
       this.fireflyIndex = 0;
     }
   }
