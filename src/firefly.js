@@ -27,15 +27,15 @@ const defaultConfig = {
 const modes = {
   summary: {
     dataSource: (config) => buildSummaryDataUrl(config),
-    dataSourceThread: "single",
+    dataHandler: (activities, config) => [activities],
     components: (p5, config) => [new FireflyGroup(p5, config), new Stats()],
   },
   example: {
     dataSource: () =>
       import.meta.env.FF_EXAMPLE_GPX || "./example/example.json",
-    dataSourceThread: "single",
-    dataHandler: (activities, { geo, width, height }) =>
+    dataHandler: (activities, { geo, width, height }) => [
       transformGpxData(activities, geo.bbox, width, height),
+    ],
     components: (p5, config) => [new FireflyGroup(p5, config), new Stats()],
   },
 };
@@ -369,13 +369,8 @@ const fireflyAnimation = (p5, container, config) => {
     p5.strokeWeight(1.5);
     p5.stroke(...mainColor, 150);
     p5.fill(...mainColor, 200);
-    if (mode.dataSourceThread === "single") {
-      allActivities = [allActivities];
-    }
     if (mode.dataHandler) {
-      allActivities = allActivities.map((activities) =>
-        mode.dataHandler(activities, config)
-      );
+      allActivities = mode.dataHandler(allActivities, config);
     }
     resetCanvas();
   };
