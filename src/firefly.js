@@ -1,8 +1,7 @@
-import { bounds } from "@mapbox/geo-viewport/geo-viewport.js";
+import { bounds, viewport } from "@mapbox/geo-viewport/geo-viewport.js";
 import { BaseComponent } from "./component";
 import Stats from "./stats";
 import { hexToRgb } from "./colors";
-
 
 const defaultConfig = {
   animation: {
@@ -22,21 +21,34 @@ const defaultConfig = {
   },
   infiniteLoop: import.meta.env.FF_INIFINITE_LOOP,
   mode: import.meta.env.FF_DEFAULT_MODE || "summary",
+  race: {
+    id: undefined,
+  },
+  title: undefined,
 };
 
 const modes = {
   summary: {
     dataSource: (config) => buildSummaryDataUrl(config),
-    dataHandler: (activities, config) => [activities],
+    dataHandler: (activities, config) => ({
+      threads: [{ tracks: activities }],
+    }),
     components: (p5, config) => [new FireflyGroup(p5, config), new Stats()],
   },
   example: {
     dataSource: () =>
       import.meta.env.FF_EXAMPLE_GPX || "./example/example.json",
-    dataHandler: (activities, { geo, width, height }) => [
+    dataHandler: (activities, { geo, width, height }) =>
       transformGpxData(activities, geo.bbox, width, height),
-    ],
     components: (p5, config) => [new FireflyGroup(p5, config), new Stats()],
+  },
+  race: {
+    dataSource: (config) => buildRaceDataUrl(config),
+    dataHandler: (activities, config) => transformRaceData(activities, config),
+    components: (p5, config, meta) => [
+      new FireflyGroup(p5, config),
+      new RaceLegend(meta),
+    ],
   },
 };
 
@@ -51,10 +63,33 @@ const mergeConfigParams = (width, height) => {
   );
   const { mode: modeParam } = urlParams;
   const mode = (modes[modeParam] && modeParam) || defaultConfig.mode;
+  let race;
+  if (mode === "race") {
+    const { raceId } = urlParams;
+    race = { id: raceId };
+  }
+
   const { loop } = urlParams;
   const infiniteLoop = loop || defaultConfig.infiniteLoop;
 
-  const { city, lon, lat, zoom } = { ...defaultConfig.geo, ...urlParams };
+  let { city, lon, lat, zoom, gpsRect } = {
+    ...defaultConfig.geo,
+    ...urlParams,
+  };
+  if (gpsRect) {
+    const rect = gpsRect.split(",").map((v) => parseFloat(v));
+    ({
+      center: [lon, lat],
+      zoom,
+    } = viewport(
+      [rect[0], rect[2], rect[1], rect[3]],
+      [width, height],
+      undefined,
+      undefined,
+      512,
+      true
+    ));
+  }
   const center = { lon, lat };
   const bbox = bounds(center, parseFloat(zoom), [width, height], 512);
   const geo = { city, lon, lat, zoom, center, bbox };
@@ -66,10 +101,10 @@ const mergeConfigParams = (width, height) => {
   const mapStyle = mapStyles[map] || defaultMapStyle;
   const theme = { ...defaultConfig.theme, mainColor, mapStyle };
 
-  const { fireflyLen: defaultFireflySize, speed: defaultSpeed } =
+  const { fireflyLen: defaultFireflyLen, speed: defaultSpeed } =
     defaultConfig.animation;
   const { firefly, speed: speedParam } = urlParams;
-  const fireflyLen = (firefly && parseInt(firefly, 10)) || defaultFireflySize;
+  const fireflyLen = (firefly && parseInt(firefly, 10)) || defaultFireflyLen;
   const speed = (speedParam && parseInt(speedParam, 10)) || defaultSpeed;
   const animation = { ...defaultConfig.animation, fireflyLen, speed };
 
@@ -82,6 +117,7 @@ const mergeConfigParams = (width, height) => {
     theme,
     infiniteLoop: ["yes", "true", "1"].includes(infiniteLoop),
     mode,
+    race,
   };
 };
 
@@ -156,6 +192,7 @@ class FireflyGroup extends BaseComponent {
     this.fireflyLen = config.animation.fireflyLen;
     this.fireFlies = undefined;
     this.fireflyIndex = 0;
+    this.fireflySize = config.mode === "race" && 0.5;
     this.initFireFlies();
   }
 
@@ -171,8 +208,7 @@ class FireflyGroup extends BaseComponent {
     const firefly = this.fireflyFactory(
       fromPoint[0],
       fromPoint[1],
-      activity["distance"] / (50 * 1000)
-      // 0.5
+      this.fireflySize || activity["distance"] / (50 * 1000)
     );
     this.fireFlies[this.fireflyIndex++] = firefly;
     if (this.fireflyIndex >= this.fireflyLen) {
@@ -205,15 +241,86 @@ const buildSummaryDataUrl = (config) => {
   return `${prefix}/${gpsRect.join(",")}/${width},${height}/`;
 };
 
-const transformGpxData = (data, bbox, width, height) =>
-  Object.values(data).map((route) => {
-    const { canvas_polyline, ...rest } = route;
-    const line = canvas_polyline.map(([x, y]) => [
-      ((x - bbox[0]) / (bbox[2] - bbox[0])) * width,
-      ((bbox[3] - y) / (bbox[3] - bbox[1])) * height,
-    ]);
-    return { canvas_polyline: line, ...rest };
-  });
+const buildRaceDataUrl = (config) => {
+  const prefix = import.meta.env.FF_RACE_DATA_URL_PREFIX || "/race/projection";
+  const {
+    width,
+    height,
+    geo: { bbox },
+  } = config;
+  const gpsRect = [bbox[0], bbox[2], bbox[1], bbox[3]].join(",");
+  const url = `${prefix}/${config.race.id}/${gpsRect}/${width},${height}/`;
+  return url;
+};
+
+const transformGpxData = (data, bbox, width, height) => ({
+  threads: [
+    {
+      tracks: Object.values(data).map((route) => {
+        const { canvas_polyline, ...rest } = route;
+        const line = canvas_polyline.map(([x, y]) => [
+          ((x - bbox[0]) / (bbox[2] - bbox[0])) * width,
+          ((bbox[3] - y) / (bbox[3] - bbox[1])) * height,
+        ]);
+        return { canvas_polyline: line, ...rest };
+      }),
+    },
+  ],
+});
+
+const transformRaceData = (data, config) => {
+  const { activities, title, playback_interval: playbackInterval } = data;
+  return {
+    meta: { title, playbackInterval },
+    threads: Object.values(activities).map((meta) => {
+      const { athlete_firstname, athlete_lastname, color } = meta;
+      const athlete = [athlete_firstname, athlete_lastname]
+        .filter((n) => !!n)
+        .join(" ");
+      return {
+        meta: {
+          athlete,
+          mainColor: hexToRgb(color.substr(1)),
+        },
+        tracks: [{ canvas_polyline: data.tracks[meta.activity_id] }],
+      };
+    }),
+  };
+};
+
+class RaceLegend extends BaseComponent {
+  constructor({ idx, athlete }) {
+    super();
+    this.idx = idx;
+    this.athlete = athlete;
+    this.cumDistance = 0;
+    this.cumElevationGain = 0;
+  }
+
+  includeInFinalView() {
+    return true;
+  }
+
+  onActivityPointForward(activity, fromPoint, toPoint) {
+    this.cumDistance = Math.floor(toPoint[2] / 1000);
+    this.cumElevationGain = Math.floor(toPoint[3]);
+  }
+
+  draw(style, width, height) {
+    const bottom = height - 30;
+    const right = width - 200;
+    style.text((p5) => {
+      p5.textAlign(p5.RIGHT);
+      p5.text(this.athlete, right - 10, bottom - this.idx * 20);
+      p5.textAlign(p5.LEFT);
+      p5.text(
+        `→: ${this.cumDistance} KM | ↗: ${this.cumElevationGain} M`,
+        right,
+        bottom - this.idx * 20
+      );
+    });
+  }
+}
 
 class Style {
   constructor(p5, config) {
@@ -228,6 +335,7 @@ class Style {
       p.strokeWeight(1);
       p.textFont(font);
       p.stroke(...mainColor, 255);
+      p.fill(...mainColor, 255);
       handler(p, theme);
     });
   }
@@ -275,7 +383,7 @@ class ActivityThread {
 
   forward() {
     if (this.finished) {
-      return;
+      return true;
     }
     const {
       animation: { speed },
@@ -319,10 +427,25 @@ class ActivityThread {
   }
 }
 
+const readableElapsedTime = (sec) => {
+  const result = [];
+  sec = Math.floor(sec / 60);
+  for (let i = 1; i < 3; i++) {
+    result.push(sec % 60);
+    sec = Math.floor(sec / 60);
+  }
+  return result
+    .reverse()
+    .map((v) => `${v}`.padStart(2, "0"))
+    .join(":");
+};
+
 const fireflyAnimation = (p5, container, config) => {
   let allActivities;
   let threads;
   let baseLayer;
+  let round = 0;
+  let paused = false;
 
   const {
     width,
@@ -335,11 +458,19 @@ const fireflyAnimation = (p5, container, config) => {
 
   const resetCanvas = () => {
     baseLayer = undefined;
-    threads = allActivities.map((activities) => {
-      const threadConfig = config; // can be customized for each thread here.
-      const components = mode.components(p5, threadConfig);
+    threads = allActivities.threads.map((activities, idx) => {
+      const { meta, tracks } = activities;
+      const { mainColor } = meta || {};
+      const threadConfig = {
+        ...config,
+        theme: {
+          ...config.theme,
+          mainColor: mainColor || config.theme.mainColor,
+        },
+      };
+      const components = mode.components(p5, threadConfig, { idx, ...meta });
       return new ActivityThread(
-        activities,
+        tracks,
         components,
         threadConfig,
         new Style(p5, threadConfig)
@@ -354,6 +485,26 @@ const fireflyAnimation = (p5, container, config) => {
 
   const drawWaterMark = () => {
     style.text((p5) => p5.text(`https://RunArt.net`, 10, height - 30));
+  };
+
+  const drawMeta = () => {
+    const { meta } = allActivities;
+    const { title, playbackInterval } = meta || {};
+    if (title) {
+      style.text((p5) => {
+        p5.textSize(16);
+        p5.text(title, 10, 30);
+      });
+    }
+    if (playbackInterval) {
+      const elapsed = readableElapsedTime(
+        playbackInterval * round * config.animation.speed
+      );
+      style.text((p5) => {
+        p5.textSize(16);
+        p5.text(elapsed, 10, 60);
+      });
+    }
   };
 
   p5.preload = () => {
@@ -376,9 +527,14 @@ const fireflyAnimation = (p5, container, config) => {
   };
 
   p5.keyPressed = () => {
-    //Saves Canvas as a PNG.
-    if (p5.keyCode == 32) {
-      p5.saveCanvas("", "png");
+    switch (p5.keyCode) {
+      case 32: // Whitespace: Saves Canvas as a PNG.
+        p5.saveCanvas("", "png");
+        break;
+      case 80: // p: pause
+        paused ? p5.loop() : p5.noLoop();
+        paused = !paused;
+        break;
     }
   };
 
@@ -391,6 +547,8 @@ const fireflyAnimation = (p5, container, config) => {
       .reduce((prev, curr) => prev && curr, true);
 
     baseLayer = p5.get();
+    round++;
+    drawMeta();
     drawWaterMark();
 
     threads.forEach((t) => {
