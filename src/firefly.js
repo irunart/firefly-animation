@@ -305,15 +305,15 @@ class RaceLegend extends BaseComponent {
 
   draw(style, width, height) {
     const bottom = height - 30;
-    const right = width - 200;
+    const right = width - 10;
     style.text((p5) => {
       p5.textAlign(p5.RIGHT);
-      p5.text(this.athlete, right - 10, bottom - this.idx * 20);
-      p5.textAlign(p5.LEFT);
+      p5.text(this.athlete, right, bottom - (this.idx * 2 + 1) * 20);
+      p5.textAlign(p5.RIGHT);
       p5.text(
         `→: ${this.cumDistance} KM | ↗: ${this.cumElevationGain} M`,
         right,
-        bottom - this.idx * 20
+        bottom - this.idx * 2 * 20
       );
     });
   }
