@@ -445,7 +445,6 @@ const fireflyAnimation = (p5, container, config) => {
   let threads;
   let baseLayer;
   let round = 0;
-  let paused = false;
 
   const {
     width,
@@ -458,6 +457,7 @@ const fireflyAnimation = (p5, container, config) => {
 
   const resetCanvas = () => {
     baseLayer = undefined;
+    round = 0;
     threads = allActivities.threads.map((activities, idx) => {
       const { meta, tracks } = activities;
       const { mainColor } = meta || {};
@@ -532,8 +532,7 @@ const fireflyAnimation = (p5, container, config) => {
         p5.saveCanvas("", "png");
         break;
       case 80: // p: pause
-        paused ? p5.loop() : p5.noLoop();
-        paused = !paused;
+        p5.isLooping() ? p5.noLoop() : p5.loop();
         break;
     }
   };
