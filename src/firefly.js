@@ -123,7 +123,7 @@ const mergeConfigParams = (width, height) => {
 
 const mapboxToken = import.meta.env.FF_MAPBOX_TOKEN;
 
-const prepareMapBackground = (container, config) => {
+const mapBackgroundURL = (container, config) => {
   if (!mapboxToken) {
     return;
   }
@@ -136,13 +136,10 @@ const prepareMapBackground = (container, config) => {
     height,
     theme: { mapStyle },
   } = config;
-  container.style(
-    "background-image",
-    `url(https://api.mapbox.com/styles/v1/mapbox/${mapStyle}/static` +
-      `/${lon},${lat},${zoom}/${width}x${height}@2x?access_token=${mapboxToken})`
+  return (
+    `https://api.mapbox.com/styles/v1/mapbox/${mapStyle}/static` +
+    `/${lon},${lat},${zoom}/${width}x${height}@2x?access_token=${mapboxToken}`
   );
-  container.style("background-size", `${width}px ${height}px`);
-  container.style("background-repeat", "no-repeat");
 };
 
 class Firefly {
@@ -445,6 +442,7 @@ const fireflyAnimation = (p5, container, config) => {
   let threads;
   let baseLayer;
   let round = 0;
+  let background;
 
   const {
     width,
@@ -456,7 +454,6 @@ const fireflyAnimation = (p5, container, config) => {
   const mode = modes[config.mode];
 
   const resetCanvas = () => {
-    baseLayer = undefined;
     round = 0;
     threads = allActivities.threads.map((activities, idx) => {
       const { meta, tracks } = activities;
@@ -477,6 +474,8 @@ const fireflyAnimation = (p5, container, config) => {
       );
     });
     p5.clear();
+    p5.background(background);
+    baseLayer = p5.get();
   };
 
   const drawFrameRate = () => {
@@ -508,7 +507,8 @@ const fireflyAnimation = (p5, container, config) => {
   };
 
   p5.preload = () => {
-    prepareMapBackground(container, config);
+    const backgroundURL = mapBackgroundURL(container, config);
+    background = p5.loadImage(backgroundURL);
     const dataSource = mode.dataSource(config);
     allActivities = p5.loadJSON(dataSource);
   };
