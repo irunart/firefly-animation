@@ -528,10 +528,10 @@ const fireflyAnimation = (p5, container, config) => {
 
   p5.keyPressed = () => {
     switch (p5.keyCode) {
-      case 32: // Whitespace: Saves Canvas as a PNG.
+      case 80: // p: Saves Canvas as a PNG.
         p5.saveCanvas("", "png");
         break;
-      case 80: // p: pause
+      case 32: // Whitespace: pause
         p5.isLooping() ? p5.noLoop() : p5.loop();
         break;
     }
