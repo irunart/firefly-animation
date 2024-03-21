@@ -23,6 +23,7 @@ const defaultConfig = {
   mode: import.meta.env.FF_DEFAULT_MODE || "summary",
   race: {
     id: undefined,
+    rank: false,
   },
   title: undefined,
 };
@@ -47,7 +48,7 @@ const modes = {
     dataHandler: (activities, config) => transformRaceData(activities, config),
     components: (p5, config, meta) => [
       new FireflyGroup(p5, config),
-      new RaceLegend(meta),
+      new RaceLegend(config, meta),
     ],
   },
 };
@@ -57,6 +58,8 @@ const mapStyles = {
   light: "light-v11",
 };
 
+const toBoolean = (s) => ["yes", "true", "1"].includes(s);
+
 const mergeConfigParams = (width, height) => {
   const urlParams = Object.fromEntries(
     new URLSearchParams(window.location.search)
@@ -65,8 +68,8 @@ const mergeConfigParams = (width, height) => {
   const mode = (modes[modeParam] && modeParam) || defaultConfig.mode;
   let race;
   if (mode === "race") {
-    const { raceId } = urlParams;
-    race = { id: raceId };
+    const { raceId, rank } = urlParams;
+    race = { id: raceId, rank: toBoolean(rank) };
   }
 
   const { loop } = urlParams;
@@ -115,7 +118,7 @@ const mergeConfigParams = (width, height) => {
     height,
     animation,
     theme,
-    infiniteLoop: ["yes", "true", "1"].includes(infiniteLoop),
+    infiniteLoop: toBoolean(infiniteLoop),
     mode,
     race,
   };
@@ -286,8 +289,10 @@ const transformRaceData = (data, config) => {
 };
 
 class RaceLegend extends BaseComponent {
-  constructor({ idx, athlete }) {
+  constructor(config, { idx, athlete, count }) {
     super();
+    this.rank = config.race.rank;
+    this.count = count;
     this.idx = idx;
     this.athlete = athlete;
     this.cumDistance = 0;
@@ -301,6 +306,9 @@ class RaceLegend extends BaseComponent {
   onActivityPointForward(activity, fromPoint, toPoint) {
     this.cumDistance = Math.floor(toPoint[2] / 1000);
     this.cumElevationGain = Math.floor(toPoint[3]);
+    if (this.rank && toPoint.length >= 5) {
+      this.idx = this.count - 1 - toPoint[4];
+    }
   }
 
   draw(style, width, height) {
@@ -455,7 +463,7 @@ const fireflyAnimation = (p5, container, config) => {
 
   const resetCanvas = () => {
     round = 0;
-    threads = allActivities.threads.map((activities, idx) => {
+    threads = allActivities.threads.map((activities, idx, threads) => {
       const { meta, tracks } = activities;
       const { mainColor } = meta || {};
       const threadConfig = {
@@ -465,7 +473,11 @@ const fireflyAnimation = (p5, container, config) => {
           mainColor: mainColor || config.theme.mainColor,
         },
       };
-      const components = mode.components(p5, threadConfig, { idx, ...meta });
+      const components = mode.components(p5, threadConfig, {
+        idx,
+        count: threads.length,
+        ...meta,
+      });
       return new ActivityThread(
         tracks,
         components,
