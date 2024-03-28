@@ -26,6 +26,7 @@ const defaultConfig = {
     rank: false,
   },
   title: undefined,
+  strokeWeight: 1,
 };
 
 const modes = {
@@ -75,7 +76,7 @@ const mergeConfigParams = (width, height) => {
   const { loop } = urlParams;
   const infiniteLoop = loop || defaultConfig.infiniteLoop;
 
-  let { city, lon, lat, zoom, gpsRect } = {
+  let { city, lon, lat, zoom, gpsRect, strokeWeight} = {
     ...defaultConfig.geo,
     ...urlParams,
   };
@@ -121,6 +122,7 @@ const mergeConfigParams = (width, height) => {
     infiniteLoop: toBoolean(infiniteLoop),
     mode,
     race,
+    strokeWeight,
   };
 };
 
@@ -217,9 +219,9 @@ class FireflyGroup extends BaseComponent {
   }
 
   draw(style, width, height) {
-    style.with((p5, { mainColor }) => {
+    style.with((p5, { mainColor, strokeWeight }) => {
       p5.stroke(...mainColor, 10);
-      p5.strokeWeight(0.5);
+      p5.strokeWeight(0.5 * strokeWeight);
       for (let k = 0; k < this.fireFlies.length; k++) {
         this.fireFlies[k].display(p5, width, height, mainColor);
         this.fireFlies[k].move();
@@ -336,7 +338,8 @@ class Style {
 
   text(handler) {
     this.with((p, theme) => {
-      const { font, mainColor } = theme;
+      const { font, mainColor, strokeWeight} = theme;
+      // Do not apply base strokeWidth to text to avoid clutter.
       p.strokeWeight(1);
       p.textFont(font);
       p.stroke(...mainColor, 255);
@@ -373,7 +376,7 @@ class ActivityThread {
   drawAllPath() {
     this.style((p5, { mainColor }) => {
       p5.clear();
-      p5.strokeWeight(0.5);
+      p5.strokeWeight(0.5 * strokeWeight);
       p5.stroke(...mainColor, 150);
       for (let k = 0; k < this.activityLen; k++) {
         const polyline = this.activities[k]["canvas_polyline"];
@@ -392,7 +395,7 @@ class ActivityThread {
     }
     const {
       animation: { speed },
-      theme: { mainColor },
+      theme: { mainColor, strokeWeight },
     } = this.config;
     for (let k = 0; k < speed; k++) {
       const activity = this.activities[this.currentActivity];
@@ -403,7 +406,7 @@ class ActivityThread {
       this.style.with((p5) => {
         p5.stroke(...mainColor, 100);
         p5.fill(...mainColor, 100);
-        p5.strokeWeight(1);
+        p5.strokeWeight(1 * strokeWeight);
         p5.line(pos1[0], pos1[1], pos2[0], pos2[1]);
       });
 
@@ -457,6 +460,7 @@ const fireflyAnimation = (p5, container, config) => {
     height,
     geo,
     theme: { mainColor, font },
+    strokeWeight,
   } = config;
   const style = new Style(p5, config);
   const mode = modes[config.mode];
@@ -529,7 +533,7 @@ const fireflyAnimation = (p5, container, config) => {
     p5.textFont(font);
     p5.createCanvas(width, height);
 
-    p5.strokeWeight(1.5);
+    p5.strokeWeight(1.5 * strokeWeight);
     p5.stroke(...mainColor, 150);
     p5.fill(...mainColor, 200);
     if (mode.dataHandler) {
