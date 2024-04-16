@@ -1,7 +1,7 @@
 import { bounds, viewport } from "@mapbox/geo-viewport/geo-viewport.js";
+import { hexToRgb } from "./colors";
 import { BaseComponent } from "./component";
 import Stats from "./stats";
-import { hexToRgb } from "./colors";
 
 const defaultConfig = {
   animation: {
@@ -12,6 +12,7 @@ const defaultConfig = {
     mapStyle: "dark-v11",
     mainColor: [100, 250, 155],
     font: "Courier New",
+    strokeWeight: 1,
   },
   geo: {
     city: "Hong Kong",
@@ -26,7 +27,6 @@ const defaultConfig = {
     rank: false,
   },
   title: undefined,
-  strokeWeight: 1,
 };
 
 const modes = {
@@ -69,7 +69,7 @@ const mergeConfigParams = (width, height) => {
   const { loop } = urlParams;
   const infiniteLoop = loop || defaultConfig.infiniteLoop;
 
-  let { city, lon, lat, zoom, gpsRect, strokeWeight } = {
+  let { city, lon, lat, zoom, gpsRect } = {
     ...defaultConfig.geo,
     ...urlParams,
   };
@@ -84,11 +84,16 @@ const mergeConfigParams = (width, height) => {
   const bbox = bounds(center, parseFloat(zoom), [width, height], 512);
   const geo = { city, lon, lat, zoom, center, bbox };
 
-  const { mainColor: defaultMainColor, mapStyle: defaultMapStyle } = defaultConfig.theme;
-  const { color, map } = urlParams;
+  const {
+    mainColor: defaultMainColor,
+    mapStyle: defaultMapStyle,
+    strokeWeight: defaultStrokeWeight,
+  } = defaultConfig.theme;
+  const { color, map, strokeWeight: weight } = urlParams;
   const mainColor = (color && hexToRgb(color)) || defaultMainColor;
   const mapStyle = mapStyles[map] || defaultMapStyle;
-  const theme = { ...defaultConfig.theme, mainColor, mapStyle };
+  const strokeWeight = (weight && Number(weight)) || defaultStrokeWeight;
+  const theme = { ...defaultConfig.theme, mainColor, mapStyle, strokeWeight };
 
   const { fireflyLen: defaultFireflyLen, speed: defaultSpeed } = defaultConfig.animation;
   const { firefly, speed: speedParam } = urlParams;
@@ -106,7 +111,6 @@ const mergeConfigParams = (width, height) => {
     infiniteLoop: toBoolean(infiniteLoop),
     mode,
     race,
-    strokeWeight,
   };
 };
 
@@ -313,7 +317,7 @@ class Style {
 
   text(handler) {
     this.with((p, theme) => {
-      const { font, mainColor, strokeWeight } = theme;
+      const { font, mainColor } = theme;
       // Do not apply base strokeWidth to text to avoid clutter.
       p.strokeWeight(1);
       p.textFont(font);
@@ -346,7 +350,7 @@ class ActivityThread {
   }
 
   drawAllPath() {
-    this.style((p5, { mainColor }) => {
+    this.style((p5, { mainColor, strokeWeight }) => {
       p5.clear();
       p5.strokeWeight(0.5 * strokeWeight);
       p5.stroke(...mainColor, 150);
@@ -426,8 +430,7 @@ const fireflyAnimation = (p5, container, config) => {
     width,
     height,
     geo,
-    theme: { mainColor, font },
-    strokeWeight,
+    theme: { mainColor, font, strokeWeight },
   } = config;
   const style = new Style(p5, config);
   const mode = modes[config.mode];
