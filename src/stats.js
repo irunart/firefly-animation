@@ -16,10 +16,12 @@ class Hist {
     this.buckets[i]++;
   }
   report() {
-    const ret = [{
-      name: `<${this.boundaries[0]}`,
-      count: this.buckets[0],
-    }];
+    const ret = [
+      {
+        name: `<${this.boundaries[0]}`,
+        count: this.buckets[0],
+      },
+    ];
     for (let i = 0; i < this.boundaries.length; i++) {
       ret.push({
         name: `>${this.boundaries[i]}`,
@@ -33,7 +35,7 @@ class Hist {
 class Stats extends BaseComponent {
   constructor() {
     super();
-    this.hist = new Hist([5, 10, 20, 40, 80])
+    this.hist = new Hist([5, 10, 20, 40, 80]);
     this.activityStartDate = "";
     this.activitySeq = 0;
     this.cumDistance = 0;
@@ -61,10 +63,10 @@ class Stats extends BaseComponent {
     style.text((p5, { mainColor }) => {
       p5.text(
         `${this.activityStartDate}\n` +
-        `#: ${this.activitySeq}\n` +
-        `→: ${this.cumDistance} KM\n` +
-        `↗: ${this.cumElevationGain} KM\n` +
-        `T: ${this.cumElapsedTime} hr\n`,
+          `#: ${this.activitySeq}\n` +
+          `→: ${this.cumDistance} KM\n` +
+          `↗: ${this.cumElevationGain} KM\n` +
+          `T: ${this.cumElapsedTime} hr\n`,
         width - 100,
         height - 90
       );
@@ -74,15 +76,11 @@ class Stats extends BaseComponent {
       for (let k = 0; k < distProfile.length; k++) {
         let p = distProfile[k];
         p5.text(`${p.name}`, 10, distProfileStartY + 20 * k);
-        p5.text(
-          `${p.count}`,
-          10 + 30 + 5 + p.count * 1.5,
-          distProfileStartY + 20 * k
-        );
+        p5.text(`${p.count}`, 10 + 30 + 5 + p.count * 1.5, distProfileStartY + 20 * k);
         p5.fill(...mainColor);
         p5.rect(10 + 30, distProfileStartY - 10 + 20 * k, p.count * 1.5, 18);
       }
-    })
+    });
   }
 }
 

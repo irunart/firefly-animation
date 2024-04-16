@@ -38,19 +38,14 @@ const modes = {
     components: (p5, config) => [new FireflyGroup(p5, config), new Stats()],
   },
   example: {
-    dataSource: () =>
-      import.meta.env.FF_EXAMPLE_GPX || "./example/example.json",
-    dataHandler: (activities, { geo, width, height }) =>
-      transformGpxData(activities, geo.bbox, width, height),
+    dataSource: () => import.meta.env.FF_EXAMPLE_GPX || "./example/example.json",
+    dataHandler: (activities, { geo, width, height }) => transformGpxData(activities, geo.bbox, width, height),
     components: (p5, config) => [new FireflyGroup(p5, config), new Stats()],
   },
   race: {
     dataSource: (config) => buildRaceDataUrl(config),
     dataHandler: (activities, config) => transformRaceData(activities, config),
-    components: (p5, config, meta) => [
-      new FireflyGroup(p5, config),
-      new RaceLegend(config, meta),
-    ],
+    components: (p5, config, meta) => [new FireflyGroup(p5, config), new RaceLegend(config, meta)],
   },
 };
 
@@ -62,9 +57,7 @@ const mapStyles = {
 const toBoolean = (s) => ["yes", "true", "1"].includes(s);
 
 const mergeConfigParams = (width, height) => {
-  const urlParams = Object.fromEntries(
-    new URLSearchParams(window.location.search)
-  );
+  const urlParams = Object.fromEntries(new URLSearchParams(window.location.search));
   const { mode: modeParam } = urlParams;
   const mode = (modes[modeParam] && modeParam) || defaultConfig.mode;
   let race;
@@ -76,7 +69,7 @@ const mergeConfigParams = (width, height) => {
   const { loop } = urlParams;
   const infiniteLoop = loop || defaultConfig.infiniteLoop;
 
-  let { city, lon, lat, zoom, gpsRect, strokeWeight} = {
+  let { city, lon, lat, zoom, gpsRect, strokeWeight } = {
     ...defaultConfig.geo,
     ...urlParams,
   };
@@ -85,28 +78,19 @@ const mergeConfigParams = (width, height) => {
     ({
       center: [lon, lat],
       zoom,
-    } = viewport(
-      [rect[0], rect[2], rect[1], rect[3]],
-      [width, height],
-      undefined,
-      undefined,
-      512,
-      true
-    ));
+    } = viewport([rect[0], rect[2], rect[1], rect[3]], [width, height], undefined, undefined, 512, true));
   }
   const center = { lon, lat };
   const bbox = bounds(center, parseFloat(zoom), [width, height], 512);
   const geo = { city, lon, lat, zoom, center, bbox };
 
-  const { mainColor: defaultMainColor, mapStyle: defaultMapStyle } =
-    defaultConfig.theme;
+  const { mainColor: defaultMainColor, mapStyle: defaultMapStyle } = defaultConfig.theme;
   const { color, map } = urlParams;
   const mainColor = (color && hexToRgb(color)) || defaultMainColor;
   const mapStyle = mapStyles[map] || defaultMapStyle;
   const theme = { ...defaultConfig.theme, mainColor, mapStyle };
 
-  const { fireflyLen: defaultFireflyLen, speed: defaultSpeed } =
-    defaultConfig.animation;
+  const { fireflyLen: defaultFireflyLen, speed: defaultSpeed } = defaultConfig.animation;
   const { firefly, speed: speedParam } = urlParams;
   const fireflyLen = (firefly && parseInt(firefly, 10)) || defaultFireflyLen;
   const speed = (speedParam && parseInt(speedParam, 10)) || defaultSpeed;
@@ -189,8 +173,7 @@ class Firefly {
 class FireflyGroup extends BaseComponent {
   constructor(p5, config) {
     super();
-    this.fireflyFactory = (...args) =>
-      new Firefly((...ra) => p5.random(...ra), ...args);
+    this.fireflyFactory = (...args) => new Firefly((...ra) => p5.random(...ra), ...args);
     this.fireflyLen = config.animation.fireflyLen;
     this.fireFlies = undefined;
     this.fireflyIndex = 0;
@@ -231,9 +214,7 @@ class FireflyGroup extends BaseComponent {
 }
 
 const buildSummaryDataUrl = (config) => {
-  const prefix =
-    import.meta.env.FF_SUMMARY_DATA_URL_PREFIX ||
-    "/firefly_animation_data/2023";
+  const prefix = import.meta.env.FF_SUMMARY_DATA_URL_PREFIX || "/firefly_animation_data/2023";
   const {
     width,
     height,
@@ -276,9 +257,7 @@ const transformRaceData = (data, config) => {
     meta: { title, playbackInterval },
     threads: Object.values(activities).map((meta) => {
       const { athlete_firstname, athlete_lastname, color } = meta;
-      const athlete = [athlete_firstname, athlete_lastname]
-        .filter((n) => !!n)
-        .join(" ");
+      const athlete = [athlete_firstname, athlete_lastname].filter((n) => !!n).join(" ");
       return {
         meta: {
           athlete,
@@ -320,11 +299,7 @@ class RaceLegend extends BaseComponent {
       p5.textAlign(p5.RIGHT);
       p5.text(this.athlete, right, bottom - (this.idx * 2 + 1) * 20);
       p5.textAlign(p5.RIGHT);
-      p5.text(
-        `→: ${this.cumDistance} KM | ↗: ${this.cumElevationGain} M`,
-        right,
-        bottom - this.idx * 2 * 20
-      );
+      p5.text(`→: ${this.cumDistance} KM | ↗: ${this.cumElevationGain} M`, right, bottom - this.idx * 2 * 20);
     });
   }
 }
@@ -338,7 +313,7 @@ class Style {
 
   text(handler) {
     this.with((p, theme) => {
-      const { font, mainColor, strokeWeight} = theme;
+      const { font, mainColor, strokeWeight } = theme;
       // Do not apply base strokeWidth to text to avoid clutter.
       p.strokeWeight(1);
       p.textFont(font);
@@ -366,10 +341,7 @@ class ActivityThread {
     this.style = style;
     this.components = components;
     this.components.forEach((component) =>
-      component.onActivityStarted(
-        this.currentActivity,
-        this.activities[this.currentActivity]
-      )
+      component.onActivityStarted(this.currentActivity, this.activities[this.currentActivity])
     );
   }
 
@@ -410,9 +382,7 @@ class ActivityThread {
         p5.line(pos1[0], pos1[1], pos2[0], pos2[1]);
       });
 
-      this.components.forEach((p) =>
-        p.onActivityPointForward(activity, pos1, pos2)
-      );
+      this.components.forEach((p) => p.onActivityPointForward(activity, pos1, pos2));
 
       this.currentActivityPoint++;
       if (this.currentActivityPoint >= activity["canvas_polyline"].length - 1) {
@@ -424,10 +394,7 @@ class ActivityThread {
         }
         this.currentActivity++;
         this.components.forEach((p) =>
-          p.onActivityStarted(
-            this.currentActivity,
-            this.activities[this.currentActivity]
-          )
+          p.onActivityStarted(this.currentActivity, this.activities[this.currentActivity])
         );
       }
     }
@@ -482,12 +449,7 @@ const fireflyAnimation = (p5, container, config) => {
         count: threads.length,
         ...meta,
       });
-      return new ActivityThread(
-        tracks,
-        components,
-        threadConfig,
-        new Style(p5, threadConfig)
-      );
+      return new ActivityThread(tracks, components, threadConfig, new Style(p5, threadConfig));
     });
     p5.clear();
     p5.background(background);
@@ -512,9 +474,7 @@ const fireflyAnimation = (p5, container, config) => {
       });
     }
     if (playbackInterval) {
-      const elapsed = readableElapsedTime(
-        playbackInterval * round * config.animation.speed
-      );
+      const elapsed = readableElapsedTime(playbackInterval * round * config.animation.speed);
       style.text((p5) => {
         p5.textSize(16);
         p5.text(elapsed, 10, 60);
@@ -557,9 +517,7 @@ const fireflyAnimation = (p5, container, config) => {
   p5.draw = () => {
     p5.clear();
     baseLayer && p5.image(baseLayer, 0, 0, width, height);
-    const finished = threads
-      .map((t) => t.forward())
-      .reduce((prev, curr) => prev && curr, true);
+    const finished = threads.map((t) => t.forward()).reduce((prev, curr) => prev && curr, true);
 
     baseLayer = p5.get();
     round++;
@@ -567,15 +525,11 @@ const fireflyAnimation = (p5, container, config) => {
     drawWaterMark();
 
     threads.forEach((t) => {
-      t.components
-        .filter((p) => p.includeInFinalView())
-        .forEach((p) => p.draw(t.style, width, height));
+      t.components.filter((p) => p.includeInFinalView()).forEach((p) => p.draw(t.style, width, height));
     });
     const finalView = finished && p5.get();
     threads.forEach((t) => {
-      t.components
-        .filter((p) => !p.includeInFinalView())
-        .forEach((p) => p.draw(t.style, width, height));
+      t.components.filter((p) => !p.includeInFinalView()).forEach((p) => p.draw(t.style, width, height));
     });
 
     if (finished) {

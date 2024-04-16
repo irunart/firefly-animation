@@ -3,15 +3,11 @@ export class BaseComponent {
     return false;
   }
 
-  onActivityStarted(idx, activity) {
-  }
+  onActivityStarted(idx, activity) {}
 
-  onActivityPointForward(activity, fromPoint, toPoint) {
-  }
+  onActivityPointForward(activity, fromPoint, toPoint) {}
 
-  onActivityFinished(activity) {
-  }
+  onActivityFinished(activity) {}
 
-  draw(brush, width, height) {
-  }
+  draw(brush, width, height) {}
 }
