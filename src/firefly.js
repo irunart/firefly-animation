@@ -27,6 +27,8 @@ const defaultConfig = {
     rank: false,
   },
   title: undefined,
+  strokeWeight: 1,
+  year: 2024,
 };
 
 const modes = {
@@ -60,6 +62,8 @@ const mergeConfigParams = (width, height) => {
   const urlParams = Object.fromEntries(new URLSearchParams(window.location.search));
   const { mode: modeParam } = urlParams;
   const mode = (modes[modeParam] && modeParam) || defaultConfig.mode;
+  const { year: yearParam} = urlParams;
+  const year = yearParam || defaultConfig.year;
   let race;
   if (mode === "race") {
     const { raceId, rank } = urlParams;
@@ -103,6 +107,7 @@ const mergeConfigParams = (width, height) => {
 
   return {
     ...defaultConfig,
+    year,
     geo,
     width,
     height,
@@ -222,10 +227,11 @@ const buildSummaryDataUrl = (config) => {
   const {
     width,
     height,
+    year,
     geo: { bbox },
   } = config;
   const gpsRect = [bbox[0], bbox[2], bbox[1], bbox[3]];
-  return `${prefix}/${gpsRect.join(",")}/${width},${height}/`;
+  return `${prefix}/${year}/${gpsRect.join(",")}/${width},${height}/`;
 };
 
 const buildRaceDataUrl = (config) => {
