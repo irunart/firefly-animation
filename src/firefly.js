@@ -54,6 +54,12 @@ const modes = {
 const mapStyles = {
   dark: "dark-v11",
   light: "light-v11",
+  "navigation-day": "navigation-day-v1",
+  "navigation-night": "navigation-night-v1",
+  outdoors: "outdoors-v12",
+  satellite: "satellite-v9",
+  "satellite-streets": "satellite-streets-v12",
+  streets: "streets-v12",
 };
 
 const toBoolean = (s) => ["yes", "true", "1"].includes(s);
@@ -62,7 +68,7 @@ const mergeConfigParams = (width, height) => {
   const urlParams = Object.fromEntries(new URLSearchParams(window.location.search));
   const { mode: modeParam } = urlParams;
   const mode = (modes[modeParam] && modeParam) || defaultConfig.mode;
-  const { year: yearParam} = urlParams;
+  const { year: yearParam } = urlParams;
   const year = yearParam || defaultConfig.year;
   let race;
   if (mode === "race") {
