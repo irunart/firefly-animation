@@ -240,8 +240,8 @@ class RaceLegend extends BaseComponent {
     this.count = count;
     this.idx = idx;
     this.athlete = athlete;
-    this.cumDistance = 0;
-    this.cumElevationGain = 0;
+    this.cumDistance = -1;
+    this.cumElevationGain = -1;
   }
 
   includeInFinalView() {
@@ -249,6 +249,10 @@ class RaceLegend extends BaseComponent {
   }
 
   onActivityPointForward(activity, fromPoint, toPoint) {
+    if (toPoint.length <= 2) {
+      return;
+    }
+
     this.cumDistance = Math.floor(toPoint[2] / 1000);
     this.cumElevationGain = Math.floor(toPoint[3]);
     if (this.rank && toPoint.length >= 5) {
@@ -257,6 +261,9 @@ class RaceLegend extends BaseComponent {
   }
 
   draw(style, width, height) {
+    if (this.cumDistance < 0) {
+      return;
+    }
     const bottom = height - 30;
     const right = width - 10;
     style.text((p5) => {
