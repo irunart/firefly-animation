@@ -2,6 +2,8 @@ import { bounds, viewport } from "@mapbox/geo-viewport/geo-viewport.js";
 import { hexToRgb } from "./colors";
 import { BaseComponent } from "./component";
 import Stats from "./stats";
+import runart from "./sources/runart";
+import example from "./sources/example";
 
 const defaultConfig = {
   animation: {
@@ -31,22 +33,20 @@ const defaultConfig = {
   year: 2024,
 };
 
+const sources = {
+  runart,
+  example,
+};
+
+const source = sources[import.meta.env.FF_SOURCE || "example"];
+
 const modes = {
   summary: {
-    dataSource: (config) => buildSummaryDataUrl(config),
-    dataHandler: (activities, config) => ({
-      threads: [{ tracks: activities }],
-    }),
-    components: (p5, config) => [new FireflyGroup(p5, config), new Stats()],
-  },
-  example: {
-    dataSource: () => import.meta.env.FF_EXAMPLE_GPX || "./example/example.json",
-    dataHandler: (activities, { geo, width, height }) => transformGpxData(activities, geo.bbox, width, height),
+    ...source.summary,
     components: (p5, config) => [new FireflyGroup(p5, config), new Stats()],
   },
   race: {
-    dataSource: (config) => buildRaceDataUrl(config),
-    dataHandler: (activities, config) => transformRaceData(activities, config),
+    ...source.race,
     components: (p5, config, meta) => [new FireflyGroup(p5, config), new RaceLegend(config, meta)],
   },
 };
@@ -105,11 +105,16 @@ const mergeConfigParams = (width, height) => {
   const strokeWeight = (weight && Number(weight)) || defaultStrokeWeight;
   const theme = { ...defaultConfig.theme, mainColor, mapStyle, strokeWeight };
 
-  const { fireflyLen: defaultFireflyLen, speed: defaultSpeed } = defaultConfig.animation;
-  const { firefly, speed: speedParam } = urlParams;
+  const {
+    fireflyLen: defaultFireflyLen,
+    speed: defaultSpeed,
+    segmentThreshold: defaultSegmentThreshold,
+  } = defaultConfig.animation;
+  const { firefly, speed: speedParam, segment: segmentThresholdParam } = urlParams;
   const fireflyLen = (firefly && parseInt(firefly, 10)) || defaultFireflyLen;
   const speed = (speedParam && parseInt(speedParam, 10)) || defaultSpeed;
-  const animation = { ...defaultConfig.animation, fireflyLen, speed };
+  const segmentThreshold = (segmentThresholdParam && parseFloat(segmentThresholdParam)) || defaultSegmentThreshold;
+  const animation = { ...defaultConfig.animation, fireflyLen, speed, segmentThreshold };
 
   return {
     ...defaultConfig,
@@ -228,63 +233,6 @@ class FireflyGroup extends BaseComponent {
   }
 }
 
-const buildSummaryDataUrl = (config) => {
-  const prefix = import.meta.env.FF_SUMMARY_DATA_URL_PREFIX || "/firefly_animation_data/2023";
-  const {
-    width,
-    height,
-    year,
-    geo: { bbox },
-  } = config;
-  const gpsRect = [bbox[0], bbox[2], bbox[1], bbox[3]];
-  return `${prefix}/${year}/${gpsRect.join(",")}/${width},${height}/`;
-};
-
-const buildRaceDataUrl = (config) => {
-  const prefix = import.meta.env.FF_RACE_DATA_URL_PREFIX || "/race/projection";
-  const {
-    width,
-    height,
-    geo: { bbox },
-  } = config;
-  const gpsRect = [bbox[0], bbox[2], bbox[1], bbox[3]].join(",");
-  const url = `${prefix}/${config.race.id}/${gpsRect}/${width},${height}/`;
-  return url;
-};
-
-const transformGpxData = (data, bbox, width, height) => ({
-  threads: [
-    {
-      tracks: Object.values(data).map((route) => {
-        const { canvas_polyline, ...rest } = route;
-        const line = canvas_polyline.map(([x, y]) => [
-          ((x - bbox[0]) / (bbox[2] - bbox[0])) * width,
-          ((bbox[3] - y) / (bbox[3] - bbox[1])) * height,
-        ]);
-        return { canvas_polyline: line, ...rest };
-      }),
-    },
-  ],
-});
-
-const transformRaceData = (data, config) => {
-  const { activities, title, playback_interval: playbackInterval } = data;
-  return {
-    meta: { title, playbackInterval },
-    threads: Object.values(activities).map((meta) => {
-      const { athlete_firstname, athlete_lastname, color } = meta;
-      const athlete = [athlete_firstname, athlete_lastname].filter((n) => !!n).join(" ");
-      return {
-        meta: {
-          athlete,
-          mainColor: hexToRgb(color.substr(1)),
-        },
-        tracks: [{ canvas_polyline: data.tracks[meta.activity_id] }],
-      };
-    }),
-  };
-};
-
 class RaceLegend extends BaseComponent {
   constructor(config, { idx, athlete, count }) {
     super();
@@ -377,12 +325,16 @@ class ActivityThread {
     });
   }
 
+  segment_distance(pos1, pos2) {
+    return Math.sqrt((pos1[0] - pos2[0]) * (pos1[0] - pos2[0]) + (pos1[1] - pos2[1]) * (pos1[1] - pos2[1]));
+  }
+
   forward() {
     if (this.finished) {
       return true;
     }
     const {
-      animation: { speed },
+      animation: { speed, segmentThreshold },
       theme: { mainColor, strokeWeight },
     } = this.config;
     for (let k = 0; k < speed; k++) {
@@ -391,12 +343,14 @@ class ActivityThread {
       const pos1 = polyline[this.currentActivityPoint];
       const pos2 = polyline[this.currentActivityPoint + 1];
 
-      this.style.with((p5) => {
-        p5.stroke(...mainColor, 100);
-        p5.fill(...mainColor, 100);
-        p5.strokeWeight(1 * strokeWeight);
-        p5.line(pos1[0], pos1[1], pos2[0], pos2[1]);
-      });
+      if (!segmentThreshold || this.segment_distance(pos1, pos2) <= segmentThreshold) {
+        this.style.with((p5) => {
+          p5.stroke(...mainColor, 100);
+          p5.fill(...mainColor, 100);
+          p5.strokeWeight(1 * strokeWeight);
+          p5.line(pos1[0], pos1[1], pos2[0], pos2[1]);
+        });
+      }
 
       this.components.forEach((p) => p.onActivityPointForward(activity, pos1, pos2));
 
