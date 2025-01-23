@@ -1,9 +1,9 @@
 import { bounds, viewport } from "@mapbox/geo-viewport/geo-viewport.js";
 import { hexToRgb } from "./colors";
 import { BaseComponent } from "./component";
-import Stats from "./stats";
-import runart from "./sources/runart";
 import example from "./sources/example";
+import runart from "./sources/runart";
+import Stats from "./stats";
 
 const defaultConfig = {
   animation: {
@@ -381,11 +381,10 @@ class ActivityThread {
 
 const readableElapsedTime = (sec) => {
   const result = [];
-  sec = Math.floor(sec / 60);
-  for (let i = 1; i < 3; i++) {
-    result.push(sec % 60);
-    sec = Math.floor(sec / 60);
-  }
+  const minutes = Math.floor(sec / 60);
+  result.push(minutes % 60);
+  const hours = Math.floor(minutes / 60);
+  result.push(hours);
   return result
     .reverse()
     .map((v) => `${v}`.padStart(2, "0"))
