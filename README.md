@@ -12,6 +12,14 @@ Pili's 2023 running log in Hong Kong:
 
 ![firefly_animation_sample](https://github.com/irunart/firefly-animation/assets/1227160/427e9e1b-e721-4921-90be-dfc6bb26783d)
 
+## Prepare
+
+You need to prepare a mapbox token to start this project, which can be obtained from [mapbox.com](https://docs.mapbox.com/help/getting-started/access-tokens/). And configure it like the following:
+
+```
+export FF_MAPBOX_TOKEN=...
+```
+
 ## Get Started
 
 ```
